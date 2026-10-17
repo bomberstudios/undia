@@ -1,11 +1,15 @@
 name: Release
 
-# Every push to main builds a signed APK and publishes it as a GitHub release, versioned
-# 0.0.<run number>. "Run workflow" (workflow_dispatch) builds and signs the same APK but only
-# attaches it to the run.
+# Every push to main that changes more than documentation builds a signed APK and publishes it
+# as a GitHub release named v<VERSION file>-<short commit hash>, e.g. v0.0.5-a638359bcf.
+# "Run workflow" (workflow_dispatch) builds and signs the same APK but only attaches it to the run.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:
@@ -28,6 +32,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Work out the version
+        id: version
+        run: |
+          base=$(tr -d '[:space:]' < VERSION)
+          [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "VERSION must look like 1.2.3, got '$base'"; exit 1; }
+          echo "name=$base-${GITHUB_SHA::10}" >> "$GITHUB_OUTPUT"
+
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -35,7 +46,7 @@ jobs:
 
       - name: Build signed release APK
         env:
-          VERSION_NAME: 0.0.${{ github.run_number }}
+          VERSION_NAME: ${{ steps.version.outputs.name }}
           STORE_FILE: ${{ runner.temp }}/release.p12
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -48,7 +59,7 @@ jobs:
           "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Name the APK
-        run: cp app/build/outputs/apk/release/app-release.apk "undia-0.0.${{ github.run_number }}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "undia-${{ steps.version.outputs.name }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,5 +72,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v0.0.${{ github.run_number }}" undia-*.apk \
-            --target "$GITHUB_SHA" --title "v0.0.${{ github.run_number }}" --generate-notes
+          gh release create "v${{ steps.version.outputs.name }}" undia-*.apk \
+            --target "$GITHUB_SHA" --title "v${{ steps.version.outputs.name }}" --generate-notes

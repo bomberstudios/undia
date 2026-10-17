@@ -11,7 +11,7 @@ android {
         applicationId "dev.sketch"
         minSdk 29
         targetSdk 34
-        // Releases set these from the tag (v0.0.1 -> 0.0.1) and the CI run number
+        // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
         versionName System.getenv('VERSION_NAME') ?: '0.0.1'
         // Boox tablets are arm64
