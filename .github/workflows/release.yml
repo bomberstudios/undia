@@ -34,7 +34,9 @@ jobs:
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export VERSION_NAME="${GITHUB_REF_NAME#v}"; fi
+          ./gradlew assembleRelease
 
       - name: Verify signature
         run: |
