@@ -6,6 +6,8 @@ import java.io.BufferedOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.time.LocalDate
+import java.util.concurrent.Executors
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -15,9 +17,12 @@ import android.graphics.Rect
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -33,6 +38,9 @@ import com.onyx.android.sdk.pen.style.StrokeStyle
  * Blank white canvas with a fixed-width 0.2 mm pen; the pen's side button toggles pen/highlighter. The Onyx SDK draws the live
  * stroke on the EPD; we mirror finished strokes into a bitmap so they survive
  * surface redraws.
+ *
+ * One page per day: today's page can be drawn on and never erased; past days are read-only,
+ * and a past day with no drawing shows a koan.
  */
 class SketchView(context: Context) : SurfaceView(context) {
     private companion object {
@@ -47,7 +55,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
         const val FILE_VERSION = 1
-        const val DOUBLE_TAP_MS = 400L
+        const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
         const val SMOOTH_DELAY_MS = 300L
@@ -57,8 +65,23 @@ class SketchView(context: Context) : SurfaceView(context) {
 
     // Guarded by synchronized(this), like the bitmap
     private val strokes = ArrayList<Stroke>()
-    private var clearedStrokes: List<Stroke>? = null
-    private val redoStack = ArrayList<Stroke>()
+
+    /** Where the daily pages (yyyy-MM-dd.bin) live. Set before [showDay]. */
+    var pagesDir: File? = null
+
+    /** The day being shown, and the current calendar day; only today's page is editable. */
+    var day: LocalDate = LocalDate.now()
+        private set
+    private var today: LocalDate = LocalDate.now()
+    val editable: Boolean get() = day == today
+
+    /** Called on the main thread when the shown day changes. */
+    var onDayChanged: ((day: LocalDate, editable: Boolean) -> Unit)? = null
+
+    private var dirty = false
+    private val saveLock = Any()
+    private val saveExecutor = Executors.newSingleThreadExecutor()
+    private val saveRunnable = Runnable { saveExecutor.execute { try { save() } catch (t: Exception) {} } }
 
     private var bitmap: Bitmap? = null
     private var bitmapCanvas: Canvas? = null
@@ -113,7 +136,7 @@ class SketchView(context: Context) : SurfaceView(context) {
     @Volatile
     private var highlighting = false
 
-    // Finger taps: two fingers undo, three toggle pen/highlighter. Pen input is handled by the
+    // Finger tap: three fingers toggle pen/highlighter. Pen input is handled by the
     // SDK, so this only ever sees fingers.
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private var tapArmed = false
@@ -163,31 +186,11 @@ class SketchView(context: Context) : SurfaceView(context) {
             MotionEvent.ACTION_POINTER_UP -> if (tapArmed && e.pointerCount == tapFingers) {
                 tapArmed = false
                 if (e.eventTime - e.downTime < TAP_MAX_MS) when (tapFingers) {
-                    2 -> twoFingerTap()
                     3 -> toggleMode()
                 }
             }
         }
         return true
-    }
-
-    private var lastTwoTapAt = 0L
-    private var lastTwoTapUndid = false
-
-    /**
-     * One tap undoes right away, with no wait for a possible second tap. A quick second tap then
-     * counts as a double tap: it takes back that undo and redoes one more stroke.
-     */
-    private fun twoFingerTap() {
-        val now = SystemClock.elapsedRealtime()
-        if (lastTwoTapAt != 0L && now - lastTwoTapAt < DOUBLE_TAP_MS) {
-            lastTwoTapAt = 0L
-            if (lastTwoTapUndid) redo()
-            redo()
-        } else {
-            lastTwoTapAt = now
-            lastTwoTapUndid = undo()
-        }
     }
 
     /** Size of the corner toggle button; pen strokes there are ignored so it can be tapped. */
@@ -260,18 +263,19 @@ class SketchView(context: Context) : SurfaceView(context) {
         val stroke = Stroke(highlight, FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y })
         synchronized(this) {
             strokes.add(stroke)
-            clearedStrokes = null // drawing after a clear makes the old page unrecoverable
-            redoStack.clear()
+            dirty = true
             bitmapCanvas?.let { render(it, stroke) }
         }
-        val dirty = bounds(stroke)
-        blit(dirty)
+        val area = bounds(stroke)
+        blit(area)
         main.post {
+            main.removeCallbacks(saveRunnable)
+            main.postDelayed(saveRunnable, SAVE_DELAY_MS)
             if (highlight) {
                 main.removeCallbacks(revertRunnable)
                 main.postDelayed(revertRunnable, REVERT_TO_PEN_MS)
             }
-            pendingSmooth.union(dirty)
+            pendingSmooth.union(area)
             main.removeCallbacks(smoothRunnable)
             main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
         }
@@ -304,7 +308,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         bitmap = fresh
         bitmapCanvas = c
         // The strokes hold the whole page, so rebuild from them (also covers a page loaded from disk)
-        synchronized(this) { strokes.forEach { render(c, it) } }
+        synchronized(this) { redrawAll() }
     }
 
     /**
@@ -349,7 +353,7 @@ class SketchView(context: Context) : SurfaceView(context) {
             .setExcludeRect(listOf(Rect(w - reservedWidth, 0, w, reservedHeight)))
             .openRawDrawing()
         setHighlighter(highlighting)
-        touchHelper.setRawDrawingEnabled(true)
+        touchHelper.setRawDrawingEnabled(editable)
         rawOpen = true
     }
 
@@ -374,110 +378,117 @@ class SketchView(context: Context) : SurfaceView(context) {
         }
     }
 
-    /** Writes the page to [file] (via a temp file, so a crash never leaves half a drawing). */
-    fun save(file: File) {
-        val copy = synchronized(this) { ArrayList(strokes) }
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        DataOutputStream(BufferedOutputStream(tmp.outputStream())).use { out ->
-            out.writeInt(FILE_VERSION)
-            out.writeInt(copy.size)
-            for (s in copy) {
-                out.writeBoolean(s.highlight)
-                out.writeInt(s.xy.size)
-                for (v in s.xy) out.writeFloat(v)
+    private fun pageFile(d: LocalDate) = File(pagesDir ?: error("pagesDir not set"), "$d.bin")
+
+    /** Writes today's page if it changed. Via a temp file, so a crash never leaves half a drawing. */
+    fun save() {
+        synchronized(saveLock) {
+            val copy: List<Stroke>
+            val file: File
+            synchronized(this) {
+                if (!dirty || !editable) return
+                copy = ArrayList(strokes)
+                file = pageFile(day)
+                dirty = false
+            }
+            try {
+                file.parentFile?.mkdirs()
+                val tmp = File(file.parentFile, file.name + ".tmp")
+                DataOutputStream(BufferedOutputStream(tmp.outputStream())).use { out ->
+                    out.writeInt(FILE_VERSION)
+                    out.writeInt(copy.size)
+                    for (s in copy) {
+                        out.writeBoolean(s.highlight)
+                        out.writeInt(s.xy.size)
+                        for (v in s.xy) out.writeFloat(v)
+                    }
+                }
+                if (!tmp.renameTo(file)) error("Could not replace ${file.name}")
+            } catch (t: Exception) {
+                synchronized(this) { dirty = true }
+                throw t
             }
         }
-        tmp.renameTo(file)
     }
 
-    /** Loads a page saved by [save]. Call before the surface exists. A bad file is ignored. */
-    fun load(file: File) {
-        if (!file.exists()) return
-        try {
+    /** Reads a saved page. A missing or unreadable file is an empty page. */
+    private fun readStrokes(file: File): List<Stroke> {
+        if (!file.exists()) return emptyList()
+        return try {
             DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
-                if (input.readInt() != FILE_VERSION) return
+                if (input.readInt() != FILE_VERSION) return emptyList()
                 val loaded = ArrayList<Stroke>()
                 repeat(input.readInt()) {
                     val highlight = input.readBoolean()
                     val xy = FloatArray(input.readInt()) { input.readFloat() }
                     if (xy.size >= 2 && xy.size % 2 == 0) loaded.add(Stroke(highlight, xy))
                 }
-                synchronized(this) {
-                    strokes.clear()
-                    strokes.addAll(loaded)
-                    redrawAll()
-                }
+                loaded
             }
         } catch (t: Exception) {
-            // Unreadable file: start blank rather than crash
+            emptyList()
         }
+    }
+
+    /**
+     * Shows [newDay]'s page, given that [newToday] is the current calendar day. Today's page is
+     * editable, any other day is read-only. Call from the main thread.
+     */
+    fun showDay(newDay: LocalDate, newToday: LocalDate, refresh: Boolean = true) {
+        main.removeCallbacks(saveRunnable)
+        main.removeCallbacks(revertRunnable)
+        try {
+            save() // the page we are leaving
+        } catch (t: Exception) {
+        }
+        val loaded = readStrokes(pageFile(newDay))
+        synchronized(this) {
+            day = newDay
+            today = newToday
+            strokes.clear()
+            strokes.addAll(loaded)
+            dirty = false
+            redrawAll()
+        }
+        if (rawOpen) touchHelper.setRawDrawingEnabled(editable)
+        blit()
+        main.post {
+            if (refresh) {
+                try {
+                    EpdController.applyGCOnce() // full refresh, so the old page leaves no ghost
+                } catch (t: Throwable) {
+                }
+                repaint(Rect(0, 0, width, height))
+            }
+            onDayChanged?.invoke(day, editable)
+        }
+    }
+
+    private val koanPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.BLACK
+        typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+    }
+
+    private fun drawKoan(c: Canvas) {
+        val margin = c.width * 0.12f
+        koanPaint.textSize = c.width * 0.055f
+        val koan = Koans.forDay(day)
+        val layout = StaticLayout.Builder
+            .obtain(koan, 0, koan.length, koanPaint, (c.width - 2 * margin).toInt())
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setLineSpacing(0f, 1.3f)
+            .build()
+        c.save()
+        c.translate(margin, (c.height - layout.height) / 2f)
+        layout.draw(c)
+        c.restore()
     }
 
     private fun redrawAll() {
         bitmapCanvas?.let { c ->
             c.drawColor(Color.WHITE)
-            strokes.forEach { render(c, it) }
+            if (!editable && strokes.isEmpty()) drawKoan(c) else strokes.forEach { render(c, it) }
         }
-    }
-
-    private fun refreshAfterEdit(area: Rect) {
-        blit(area)
-        repaint(area)
-    }
-
-    /** Wipes the page. [undo] brings it back as long as nothing is drawn afterwards. */
-    fun clear() {
-        synchronized(this) {
-            if (strokes.isEmpty()) return
-            clearedStrokes = ArrayList(strokes)
-            strokes.clear()
-            redoStack.clear()
-            redrawAll()
-        }
-        blit()
-        main.post {
-            try {
-                EpdController.applyGCOnce() // full refresh to clear ghosting
-            } catch (t: Throwable) {
-            }
-            repaint(Rect(0, 0, width, height))
-        }
-    }
-
-    /** Puts back the most recently undone stroke. False when there is none. */
-    fun redo(): Boolean {
-        val area: Rect
-        synchronized(this) {
-            if (redoStack.isEmpty()) return false
-            val stroke = redoStack.removeAt(redoStack.size - 1)
-            strokes.add(stroke)
-            bitmapCanvas?.let { render(it, stroke) }
-            area = bounds(stroke)
-        }
-        refreshAfterEdit(area)
-        return true
-    }
-
-    /** Removes the last stroke, or restores a cleared page. False when there is nothing to undo. */
-    fun undo(): Boolean {
-        val area: Rect
-        synchronized(this) {
-            val cleared = clearedStrokes
-            if (strokes.isNotEmpty()) {
-                val last = strokes.removeAt(strokes.size - 1)
-                redoStack.add(last)
-                area = bounds(last)
-            } else if (cleared != null) {
-                strokes.addAll(cleared)
-                clearedStrokes = null
-                area = Rect(0, 0, width, height)
-            } else {
-                return false
-            }
-            redrawAll()
-        }
-        refreshAfterEdit(area)
-        return true
     }
 
     fun pauseInput() {
@@ -487,7 +498,7 @@ class SketchView(context: Context) : SurfaceView(context) {
     fun resumeInput() {
         if (rawOpen) {
             blit()
-            touchHelper.setRawDrawingEnabled(true)
+            touchHelper.setRawDrawingEnabled(editable)
         }
     }
 }
