@@ -3,6 +3,9 @@ package com.bomberstudios.undia
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Typeface
+import android.graphics.text.LineBreaker
+import android.text.Layout
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
@@ -130,23 +133,26 @@ class MainActivity : Activity() {
 
     private fun buildAboutCard(dp: Float): LinearLayout {
         val zodiak = resources.getFont(R.font.zodiak)
-        fun text(value: String, sizeSp: Float, gravity: Int, topDp: Int, color: Int = Color.BLACK) =
+        val zodiakItalic = resources.getFont(R.font.zodiak_italic)
+        fun text(value: String, sizeSp: Float, gravity: Int, topDp: Int, color: Int = Color.BLACK, face: Typeface = zodiak) =
             TextView(this).apply {
                 text = value
                 textSize = sizeSp
-                typeface = zodiak
+                typeface = face
                 fontFeatureSettings = "onum"
                 setTextColor(color)
                 this.gravity = gravity
-                setLineSpacing(0f, 1.15f)
+                setLineSpacing(0f, 1.05f)
+                breakStrategy = LineBreaker.BREAK_STRATEGY_BALANCED // like CSS text-wrap: balance
+                hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
                 layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = (topDp * dp).toInt() }
             }
 
         val version = packageManager.getPackageInfo(packageName, 0).versionName
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val pad = (24 * dp).toInt()
-            setPadding(pad, pad, pad, pad)
+            val pad = (54 * dp).toInt()
+            setPadding(pad, pad, pad, pad) // the same on every side; wide sides keep the lines short
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 setStroke((2 * dp).toInt(), Color.BLACK)
@@ -156,25 +162,26 @@ class MainActivity : Activity() {
                 setImageDrawable(getDrawable(R.mipmap.ic_launcher))
                 contentDescription = "undia icon"
             }, LinearLayout.LayoutParams((88 * dp).toInt(), (88 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL })
-            addView(text("undia", 26f, Gravity.CENTER, 8))
-            addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 13f, Gravity.CENTER, 0, Color.rgb(0x44, 0x44, 0x44)))
+            addView(text("undia", 28f, Gravity.CENTER, 8))
+            addView(text("The notebook that does LESS", 17f, Gravity.CENTER, 0, face = zodiakItalic))
+            addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 14f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)))
             addView(text(
-                "One page per day. Today's page is yours to fill, and it can only be added to: nothing is erased, undone or cleared. At midnight a new page begins.",
-                15f, Gravity.START, 20
+                "One page per day. All yours to scribble, sketch, draw or write. You can’t erase, undo, or clear, because regret is not worth it. You’ll get a new page at midnight anyway, so don’t worry too much.",
+                17f, Gravity.START, 18
             ))
             addView(text(
-                "Past days are for reading, not editing. You may still scribble on them, but that ink is dotted, fades within seconds and is never saved. A day you left empty offers a koan instead.",
-                15f, Gravity.START, 12
+                "No streaks, no backlog, no eraser, no regrets (okay, maybe a few regrets), just today.",
+                17f, Gravity.START, 10
             ))
             addView(text(
-                "Tap the mark at the top right, or tap with three fingers, to switch between pen and highlighter. Swipe to turn pages, double-tap to return to today, hold to open the menu.",
-                15f, Gravity.START, 12
+                "You can revisit old pages, but you can’t rewrite the past (well, you can try, but it won’t work). Skipped a day? You’ll get a random koan so you can still have something to meditate about.",
+                17f, Gravity.START, 10
             ))
             addView(text(
-                "undia is a small bet on commitment and impermanence: what you wrote today stays as it was written, and what you didn't write is left alone. No streaks, no backlog, no tidying up.",
-                15f, Gravity.START, 12
+                "You get one pen and one highlighter. Toggle between them using the mark at the top right (or a three finger tap). Swipe to flip pages, double tap to come back to today, and hold for a menu.",
+                17f, Gravity.START, 10
             ))
-            addView(text("Made by Ale Muñoz", 12f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
+            addView(text("Made with love by Ale Muñoz", 13f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
         }
     }
 
