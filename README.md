@@ -4,6 +4,14 @@ A one-page-a-day notebook for the Boox Go6 Gen2 (Android 14).
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
+## Screenshots
+
+| Today | Hold for the menu | About | A past day |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/today.png" width="200" alt="Today's page, with notes and drawings in pen and highlighter"> | <img src="docs/screenshots/menu.png" width="200" alt="The menu: a calendar, then copy, save as PDF, share and about"> | <img src="docs/screenshots/about.png" width="200" alt="The About window"> | <img src="docs/screenshots/past.png" width="200" alt="A past day with nothing drawn, showing its date and a koan"> |
+
+Taken on a Go 6 Gen 2. The panel is black and white, so the orange date and the yellow highlighter show up as grays on the device itself.
+
 ## How it works
 
 - **One page per day.** Today's page is the only one you can draw on.
