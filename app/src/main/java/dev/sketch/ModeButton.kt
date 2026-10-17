@@ -32,9 +32,6 @@ class ModeButton(context: Context) : View(context) {
     override fun onDraw(c: Canvas) {
         val cx = width / 2f
         val cy = height / 2f
-        fill.color = Color.WHITE
-        c.drawCircle(cx, cy, minOf(cx, cy) - stroke.strokeWidth / 2, fill)
-        c.drawCircle(cx, cy, minOf(cx, cy) - stroke.strokeWidth / 2, stroke)
         if (highlighting) {
             fill.color = Color.rgb(0xff, 0xcc, 0x00)
             c.drawCircle(cx, cy, 9 * dp, fill)

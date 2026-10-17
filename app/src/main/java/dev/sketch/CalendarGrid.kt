@@ -63,15 +63,22 @@ class CalendarGrid(context: Context) : View(context) {
         selected = selectedDay
         today = todayDate
         month = YearMonth.from(selectedDay)
+        requestLayout()
         invalidate()
     }
 
     override fun onMeasure(w: Int, h: Int) {
         setMeasuredDimension(
             MeasureSpec.getSize(w),
-            (headerH + weekdayH + 6 * rowH).toInt()
+            (headerH + weekdayH + rows() * rowH).toInt()
         )
     }
+
+    /** How many columns the first of the month is in from the start of the week. */
+    private fun offset() = (month.atDay(1).dayOfWeek.value - firstDay.value + 7) % 7
+
+    /** 4 to 6, however many weeks the month spans: no empty rows. */
+    private fun rows() = (offset() + month.lengthOfMonth() + 6) / 7
 
     private fun cellWidth() = width / 7f
 
@@ -92,7 +99,7 @@ class CalendarGrid(context: Context) : View(context) {
             )
         }
 
-        val offset = (month.atDay(1).dayOfWeek.value - firstDay.value + 7) % 7
+        val offset = offset()
         for (day in 1..month.lengthOfMonth()) {
             val cell = offset + day - 1
             val cx = cw * (cell % 7) + cw / 2
@@ -123,14 +130,14 @@ class CalendarGrid(context: Context) : View(context) {
                 x < headerH -> month = month.minusMonths(1)
                 x > width - headerH && month.isBefore(YearMonth.from(today)) -> month = month.plusMonths(1)
             }
+            requestLayout() // the number of rows can change
             invalidate()
             return true
         }
         if (y < headerH + weekdayH) return true
         val col = (x / cellWidth()).toInt().coerceIn(0, 6)
         val row = ((y - headerH - weekdayH) / rowH).toInt()
-        val offset = (month.atDay(1).dayOfWeek.value - firstDay.value + 7) % 7
-        val day = row * 7 + col - offset + 1
+        val day = row * 7 + col - offset() + 1
         if (day in 1..month.lengthOfMonth()) {
             val date = month.atDay(day)
             if (!date.isAfter(today)) onPick?.invoke(date)

@@ -41,9 +41,12 @@ class MainActivity : Activity() {
         val margin = (8 * dp).toInt()
 
         canvas = SketchView(this).apply {
-            // Pen strokes in this corner are ignored so the button can be tapped
-            reservedWidth = size + 2 * margin
-            reservedHeight = size + 2 * margin
+            // The pen is ignored only around the mark itself (the button is 48 dp, the mark is smaller)
+            val markBox = (32 * dp).toInt()
+            reservedWidth = markBox
+            reservedHeight = markBox
+            reservedInsetRight = margin + (size - markBox) / 2
+            reservedInsetTop = margin + (size - markBox) / 2
             onLongPress = { _, _ -> showMenu() }
         }
 
@@ -85,6 +88,12 @@ class MainActivity : Activity() {
             clipToOutline = true
             isVerticalScrollBarEnabled = false
             addView(content)
+        }
+
+        // The menu changes height when the calendar changes month: keep it centered
+        menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f)
+            menu.translationY = ((canvas.height - menu.height) / 2f).coerceAtLeast(0f)
         }
 
         // Full-screen scrim: tapping anywhere outside the menu closes it
@@ -158,7 +167,7 @@ class MainActivity : Activity() {
                 15f, Gravity.START, 12
             ))
             addView(text(
-                "Tap the circle, or tap with three fingers, to switch between pen and highlighter. Swipe to turn pages, double-tap to return to today, hold to open the menu.",
+                "Tap the mark at the top right, or tap with three fingers, to switch between pen and highlighter. Swipe to turn pages, double-tap to return to today, hold to open the menu.",
                 15f, Gravity.START, 12
             ))
             addView(text(

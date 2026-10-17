@@ -264,9 +264,14 @@ class SketchView(context: Context) : SurfaceView(context) {
         return true
     }
 
-    /** Size of the corner toggle button; pen strokes there are ignored so it can be tapped. */
+    /**
+     * A small area around the corner toggle where the pen is ignored, so the pen can tap it.
+     * Everywhere else, including the rest of the button's tap area, the pen draws; fingers always work.
+     */
     var reservedWidth = 0
     var reservedHeight = 0
+    var reservedInsetRight = 0
+    var reservedInsetTop = 0
 
     /** Called on the main thread whenever the mode changes. */
     var onModeChanged: ((highlighting: Boolean) -> Unit)? = null
@@ -361,8 +366,10 @@ class SketchView(context: Context) : SurfaceView(context) {
                 bitmapCanvas?.let { render(it, stroke) }
             }
         }
+        // No blit here: the surface is updated later, in smoothPending, while the pen is idle.
+        // Blitting right after a stroke can wipe the live ink of the next one, which the SDK is
+        // already drawing on the panel when strokes are small, fast and overlapping.
         val area = bounds(stroke)
-        blit(area)
         main.post {
             if (temporary) scheduleFade()
             if (!temporary) {
@@ -430,10 +437,15 @@ class SketchView(context: Context) : SurfaceView(context) {
      */
     private fun smoothPending() {
         if (!rawOpen || pendingSmooth.isEmpty) return
+        if (penDown) { // wait for the pen to lift: never repaint under it
+            main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
+            return
+        }
         val area = Rect(pendingSmooth)
         pendingSmooth.setEmpty()
         area.intersect(0, 0, width, height)
         if (area.isEmpty) return
+        blit(area) // bring the surface up to date first, so the repaint below draws the new strokes
         try {
             EpdController.handwritingRepaint(this, area)
             EpdController.clearTransientUpdate(true)
@@ -448,7 +460,10 @@ class SketchView(context: Context) : SurfaceView(context) {
         closeRaw()
         touchHelper
             .setLimitRect(mutableListOf(Rect(0, 0, w, h)))
-            .setExcludeRect(listOf(Rect(w - reservedWidth, 0, w, reservedHeight)))
+            .setExcludeRect(listOf(Rect(
+                w - reservedInsetRight - reservedWidth, reservedInsetTop,
+                w - reservedInsetRight, reservedInsetTop + reservedHeight
+            )))
             .openRawDrawing()
         setHighlighter(highlighting)
         touchHelper.setRawDrawingEnabled(true)

@@ -17,7 +17,7 @@ You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, 
 | Do this | To get this |
 | --- | --- |
 | Draw with the pen | 0.2 mm black line |
-| Tap the round button (top right), or tap with three fingers | Switch between pen (small black dot) and highlighter (larger colored circle) |
+| Tap the mark at the top right (a dot or a circle), or tap with three fingers | Switch between pen (small black dot) and highlighter (larger colored circle). The mark has no background, so you can draw right up to it; the pen only skips a small area around it, and a finger works anywhere on it |
 | Touch the screen with the pen's side button held | Same switch, from the pen |
 | Swipe left or right with one finger | Next or previous day (never past today) |
 | Double-tap with one finger | Go back to today |
