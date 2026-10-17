@@ -1,8 +1,7 @@
 name: Build
 
+# Pushes to main are built, signed and released by release.yml
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
