@@ -14,29 +14,15 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.print.PrintHelper
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.Properties
-import javax.activation.DataHandler
-import javax.mail.Authenticator
-import javax.mail.Message
-import javax.mail.PasswordAuthentication
-import javax.mail.Session
-import javax.mail.Transport
-import javax.mail.internet.InternetAddress
-import javax.mail.internet.MimeBodyPart
-import javax.mail.internet.MimeMessage
-import javax.mail.internet.MimeMultipart
-import javax.mail.util.ByteArrayDataSource
 
 object Exporter {
     // Go 6 Gen2 panel density; PDF pages are in 1/72 inch
     private const val PANEL_PPI = 300f
-    private const val EMAIL_TO = "bomberstudios@gmail.com"
 
     fun copyToClipboard(context: Context, bitmap: Bitmap) {
         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
@@ -78,45 +64,6 @@ object Exporter {
             ?: error("Could not create $name")
         resolver.openOutputStream(uri)!!.use { writePdf(bitmap, it) }
         return name
-    }
-
-    /** Sends the PDF straight to [EMAIL_TO] over SMTP. Blocks: call off the main thread. */
-    fun emailPdf(bitmap: Bitmap): String {
-        if (BuildConfig.SMTP_USER.isEmpty() || BuildConfig.SMTP_PASSWORD.isEmpty()) {
-            return "Set smtp.user and smtp.password in local.properties, then rebuild"
-        }
-        val pdf = ByteArrayOutputStream().also { writePdf(bitmap, it) }.toByteArray()
-
-        val props = Properties().apply {
-            put("mail.smtp.host", "smtp.gmail.com")
-            put("mail.smtp.port", "465")
-            put("mail.smtp.ssl.enable", "true")
-            put("mail.smtp.auth", "true")
-            put("mail.smtp.connectiontimeout", "15000")
-            put("mail.smtp.timeout", "30000")
-            put("mail.smtp.writetimeout", "30000")
-        }
-        val session = Session.getInstance(props, object : Authenticator() {
-            override fun getPasswordAuthentication() =
-                PasswordAuthentication(BuildConfig.SMTP_USER, BuildConfig.SMTP_PASSWORD)
-        })
-        return try {
-            val body = MimeBodyPart().apply { setText("Sketch attached.") }
-            val attachment = MimeBodyPart().apply {
-                dataHandler = DataHandler(ByteArrayDataSource(pdf, "application/pdf"))
-                fileName = "sketch-${timestamp()}.pdf"
-            }
-            val message = MimeMessage(session).apply {
-                setFrom(InternetAddress(BuildConfig.SMTP_USER))
-                setRecipient(Message.RecipientType.TO, InternetAddress(EMAIL_TO))
-                subject = "Sketch"
-                setContent(MimeMultipart().apply { addBodyPart(body); addBodyPart(attachment) })
-            }
-            Transport.send(message)
-            "Sent to $EMAIL_TO"
-        } catch (e: Exception) {
-            "Email failed: " + (e.message ?: e.javaClass.simpleName)
-        }
     }
 
     /** Opens Android's share sheet with the sketch as a PDF (LocalSend, Drive, etc.). */

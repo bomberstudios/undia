@@ -81,7 +81,6 @@ class MainActivity : Activity() {
                 exportThen { "Saved " + Exporter.saveAsPdf(this@MainActivity, it) + " to Downloads" }
             }
             addItem(this, "Share…") { exportThen { Exporter.share(this@MainActivity, it) } }
-            addItem(this, "Email PDF to me") { exportThen { Exporter.emailPdf(it) } }
             addItem(this, "Print") { exportThen { Exporter.print(this@MainActivity, it); null } }
             backToToday = addItem(this, "Back to today") { canvas.showDay(today, today) }
         }

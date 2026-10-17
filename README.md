@@ -21,14 +21,13 @@ You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, 
 | Touch the screen with the pen's side button held | Same switch, from the pen |
 | Hold one finger on the screen | Open the menu |
 
-The highlighter is a 4 mm light-gray stroke that keeps your ink readable underneath. It goes back to the pen by itself 0.8 s after a highlight stroke, so you can highlight several things in quick succession.
+The highlighter is a 4 mm #ffcc00 stroke (a light gray on the black-and-white panel) that keeps your ink readable underneath. It goes back to the pen by itself 0.8 s after a highlight stroke, so you can highlight several things in quick succession.
 
 The menu has a **calendar** to jump to any day up to today (past days open read-only), and:
 
 - Copy to clipboard (the page as a PNG)
 - Save as PDF (to Downloads)
 - Share… (Android share sheet, for example LocalSend)
-- Email PDF to me
 - Print
 - Back to today (when you are on a past day)
 
@@ -45,22 +44,11 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it. The reference implementation for the Onyx SDK usage is [booxday](https://github.com/fortolano/booxday).
 
-### Emailing a page
-
-"Email PDF to me" sends the page by SMTP through Gmail. It needs a Gmail [app password](https://myaccount.google.com/apppasswords) in `local.properties`, which is git-ignored:
-
-```
-smtp.user=you@gmail.com
-smtp.password=<16-character app password>
-```
-
-The password is built into the APK, so keep the APK to yourself. Without these lines the rest of the app works and the menu item just tells you what is missing.
-
 ## Where things are
 
 Pages are stored as one small file per day (`yyyy-MM-dd.bin`) in the app's private storage. Code is in `app/src/main/java/dev/sketch`:
 
 - `SketchView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover
-- `Exporter.kt`: clipboard, PDF, share, email and print
+- `Exporter.kt`: clipboard, PDF, share and print
 - `Koans.kt`: the koans for empty days

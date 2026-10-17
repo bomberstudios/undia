@@ -50,7 +50,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         const val PEN_WIDTH_PX = PEN_WIDTH_MM / 25.4f * PANEL_PPI // ~2.36 px
         const val HIGHLIGHT_WIDTH_MM = 4f
         const val HIGHLIGHT_WIDTH_PX = HIGHLIGHT_WIDTH_MM / 25.4f * PANEL_PPI // ~47 px
-        val HIGHLIGHT_COLOR = Color.rgb(200, 200, 200)
+        val HIGHLIGHT_COLOR = Color.rgb(0xff, 0xcc, 0x00) // #ffcc00
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L

@@ -38,7 +38,7 @@ class ModeButton(context: Context) : View(context) {
         if (highlighting) {
             val h = 9 * dp
             val r = RectF(cx - h, cy - h, cx + h, cy + h)
-            fill.color = Color.rgb(200, 200, 200)
+            fill.color = Color.rgb(0xff, 0xcc, 0x00)
             c.drawRect(r, fill)
             c.drawRect(r, stroke)
         } else {
