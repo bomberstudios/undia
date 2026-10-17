@@ -17,11 +17,25 @@ android {
         ndk { abiFilters 'arm64-v8a' }
     }
 
+    // Release signing comes from the environment (CI, or a local shell); without it a local
+    // release build falls back to the debug key so it still builds.
+    signingConfigs {
+        release {
+            def storePath = System.getenv('STORE_FILE')
+            if (storePath) {
+                storeFile file(storePath)
+                storePassword System.getenv('STORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig System.getenv('STORE_FILE') ? signingConfigs.release : signingConfigs.debug
         }
     }
     compileOptions {

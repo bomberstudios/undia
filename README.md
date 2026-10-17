@@ -44,6 +44,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 A GitHub Action (`.github/workflows/build.yml`) builds the debug APK on every push to `main` and on pull requests, and attaches it to the run as an artifact.
 
+### Releases
+
+Pushing a tag such as `v1.0` runs `.github/workflows/release.yml`, which builds a signed release APK and publishes it as a GitHub release:
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+The signing key is stored in the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. A copy of the key and its password is in `~/.config/boox-sketch/` on the machine that created it; keep a backup, because an app can only be updated by APKs signed with the same key. A local release build uses the same key when `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set in the environment, and falls back to the debug key otherwise.
+
 The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it. The reference implementation for the Onyx SDK usage is [booxday](https://github.com/fortolano/booxday).
 
 ## Where things are
