@@ -18,9 +18,6 @@ import java.util.Date
 import java.util.Locale
 
 object Exporter {
-    // Go 6 Gen2 panel density; PDF pages are in 1/72 inch
-    private const val PANEL_PPI = 300f
-
     fun copyToClipboard(context: Context, bitmap: Bitmap) {
         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
         val file = File(dir, "undia.png")
@@ -32,12 +29,12 @@ object Exporter {
 
     /** One page, drawn as vectors: strokes are paths and text is text, not a picture. */
     private fun writePdf(page: UndiaView.PageSnapshot, out: OutputStream) {
-        val widthPt = (page.width / PANEL_PPI * 72).toInt()
-        val heightPt = (page.height / PANEL_PPI * 72).toInt()
+        val widthPt = (page.width / page.ppi * 72).toInt()
+        val heightPt = (page.height / page.ppi * 72).toInt()
         val pdf = PdfDocument()
         try {
             val p = pdf.startPage(PdfDocument.PageInfo.Builder(widthPt, heightPt, 1).create())
-            p.canvas.scale(72f / PANEL_PPI, 72f / PANEL_PPI) // draw in panel pixels
+            p.canvas.scale(72f / page.ppi, 72f / page.ppi) // draw in panel pixels
             page.draw(p.canvas)
             pdf.finishPage(p)
             pdf.writeTo(out)

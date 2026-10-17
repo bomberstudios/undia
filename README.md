@@ -43,6 +43,12 @@ The menu has a **calendar** to jump to any day up to today (past days open read-
 
 Past pages show their date, centered at the top in the same font as the koans (Zodiak Italic). Today's page shows no date.
 
+## Devices
+
+Built and tested on the Go 6 Gen 2 (Android 14). Nothing is tied to its resolution: the pen is 0.2 mm wide and the highlighter 4 mm on any panel, because the sizes come from the real pixel density the device reports, and the layout uses dp and fractions of the screen. Other Boox tablets with a stylus, like the Go 10.3, should work, but only the Go 6 has been tried.
+
+The app takes drawing input from the stylus only (fingers are for gestures), so a device without a stylus can't draw on it.
+
 ## Building
 
 Open the project in Android Studio, or from the command line:

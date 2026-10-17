@@ -47,11 +47,7 @@ import com.onyx.android.sdk.pen.style.StrokeStyle
 class UndiaView(context: Context) : SurfaceView(context) {
     private companion object {
         const val PEN_WIDTH_MM = 0.2f
-        // Go 6 Gen2: 1264x1680 on a 6" panel = 300 ppi
-        const val PANEL_PPI = 300f
-        const val PEN_WIDTH_PX = PEN_WIDTH_MM / 25.4f * PANEL_PPI // ~2.36 px
         const val HIGHLIGHT_WIDTH_MM = 4f
-        const val HIGHLIGHT_WIDTH_PX = HIGHLIGHT_WIDTH_MM / 25.4f * PANEL_PPI // ~47 px
         val DATE_COLOR = Color.rgb(0xff, 0x66, 0x00) // #ff6600
         // Ink on a past page is temporary: gray and dotted
         val TEMP_COLOR = Color.rgb(0x88, 0x88, 0x88)
@@ -73,6 +69,17 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // Pause after the last stroke before it is repainted smooth
         const val SMOOTH_DELAY_MS = 300L
     }
+
+    /**
+     * The panel's real pixels per inch, as the device reports it (300 on the Go 6, about 227 on the
+     * Go 10.3), so the pen is 0.2 mm wide on any Boox. Falls back to the density if it looks wrong.
+     */
+    private val ppi: Float = resources.displayMetrics.let { m ->
+        val real = (m.xdpi + m.ydpi) / 2
+        if (real in 100f..600f) real else m.densityDpi.toFloat()
+    }
+    private val penWidthPx = PEN_WIDTH_MM / 25.4f * ppi // about 2.4 px at 300 ppi
+    private val highlightWidthPx = HIGHLIGHT_WIDTH_MM / 25.4f * ppi // about 47 px at 300 ppi
 
     private class Stroke(val highlight: Boolean, val xy: FloatArray) {
         // Only used by temporary strokes: when it was drawn and how faded it is (0 = fresh)
@@ -116,7 +123,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
         style = Paint.Style.STROKE
-        strokeWidth = PEN_WIDTH_PX
+        strokeWidth = penWidthPx
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
@@ -134,7 +141,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = HIGHLIGHT_COLOR
         style = Paint.Style.STROKE
-        strokeWidth = HIGHLIGHT_WIDTH_PX
+        strokeWidth = highlightWidthPx
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         xfermode = PorterDuffXfermode(PorterDuff.Mode.DARKEN)
@@ -291,7 +298,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
         val marker = highlighting && editable
         touchHelper
             .setStrokeStyle(if (marker) StrokeStyle.MARKER else StrokeStyle.PENCIL)
-            .setStrokeWidth(if (marker) HIGHLIGHT_WIDTH_PX else PEN_WIDTH_PX)
+            .setStrokeWidth(if (marker) highlightWidthPx else penWidthPx)
             .setStrokeColor(if (!editable) TEMP_COLOR else if (marker) HIGHLIGHT_COLOR else Color.BLACK)
     }
 
@@ -347,7 +354,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
             l = minOf(l, s.xy[i]); r = maxOf(r, s.xy[i])
             t = minOf(t, s.xy[i + 1]); b = maxOf(b, s.xy[i + 1])
         }
-        val pad = (if (s.highlight) HIGHLIGHT_WIDTH_PX else PEN_WIDTH_PX) + 2f
+        val pad = (if (s.highlight) highlightWidthPx else penWidthPx) + 2f
         return Rect((l - pad).toInt(), (t - pad).toInt(), (r + pad).toInt() + 1, (b + pad).toInt() + 1)
     }
 
@@ -528,9 +535,9 @@ class UndiaView(context: Context) : SurfaceView(context) {
         sb.append("<g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
         for (s in list) {
             if (s.highlight) {
-                sb.append("<polyline stroke=\"$HIGHLIGHT_HEX\" stroke-width=\"${fmt(HIGHLIGHT_WIDTH_PX)}\" style=\"mix-blend-mode:darken\" points=\"")
+                sb.append("<polyline stroke=\"$HIGHLIGHT_HEX\" stroke-width=\"${fmt(highlightWidthPx)}\" style=\"mix-blend-mode:darken\" points=\"")
             } else {
-                sb.append("<polyline stroke=\"#000000\" stroke-width=\"${fmt(PEN_WIDTH_PX)}\" points=\"")
+                sb.append("<polyline stroke=\"#000000\" stroke-width=\"${fmt(penWidthPx)}\" points=\"")
             }
             for (i in s.xy.indices step 2) {
                 if (i > 0) sb.append(' ')
@@ -704,7 +711,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     }
 
     /** A page that can be drawn later, on any thread and any canvas, as it is right now. */
-    class PageSnapshot(val width: Int, val height: Int, val draw: (Canvas) -> Unit)
+    class PageSnapshot(val width: Int, val height: Int, val ppi: Float, val draw: (Canvas) -> Unit)
 
     fun pageSnapshot(): PageSnapshot? {
         val w = width
@@ -714,7 +721,8 @@ class UndiaView(context: Context) : SurfaceView(context) {
         val isEditable = editable
         val (s, t) = synchronized(this) { ArrayList(strokes) to ArrayList(tempStrokes) }
         // The paints are copied: drawing may happen on another thread while the screen redraws
-        return PageSnapshot(w, h) { c ->
+        val pixelsPerInch = ppi
+        return PageSnapshot(w, h, pixelsPerInch) { c ->
             drawPage(c, w, h, d, isEditable, s, t, TextPaint(koanPaint), TextPaint(datePaint), Paint(tempPaint))
         }
     }
