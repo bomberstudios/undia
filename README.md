@@ -17,7 +17,7 @@ You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, 
 | Do this | To get this |
 | --- | --- |
 | Draw with the pen | 0.2 mm black line |
-| Tap the round button (top right), or tap with three fingers | Switch between pen (dot) and highlighter (square) |
+| Tap the round button (top right), or tap with three fingers | Switch between pen (small black dot) and highlighter (larger colored circle) |
 | Touch the screen with the pen's side button held | Same switch, from the pen |
 | Hold one finger on the screen | Open the menu |
 
@@ -41,6 +41,8 @@ Open the project in Android Studio, or from the command line:
 ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+A GitHub Action (`.github/workflows/build.yml`) builds the debug APK on every push to `main` and on pull requests, and attaches it to the run as an artifact.
 
 The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it. The reference implementation for the Onyx SDK usage is [booxday](https://github.com/fortolano/booxday).
 

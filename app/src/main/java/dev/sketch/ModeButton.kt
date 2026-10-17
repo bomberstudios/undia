@@ -7,7 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.view.View
 
-/** Round button showing a dot (pen) or a square (highlighter). No animation: e-ink friendly. */
+/** Round button showing a small dot (pen) or a larger unstroked circle (highlighter). No animation: e-ink friendly. */
 class ModeButton(context: Context) : View(context) {
     private val dp = resources.displayMetrics.density
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -36,11 +36,8 @@ class ModeButton(context: Context) : View(context) {
         c.drawCircle(cx, cy, minOf(cx, cy) - stroke.strokeWidth / 2, fill)
         c.drawCircle(cx, cy, minOf(cx, cy) - stroke.strokeWidth / 2, stroke)
         if (highlighting) {
-            val h = 9 * dp
-            val r = RectF(cx - h, cy - h, cx + h, cy + h)
             fill.color = Color.rgb(0xff, 0xcc, 0x00)
-            c.drawRect(r, fill)
-            c.drawRect(r, stroke)
+            c.drawCircle(cx, cy, 9 * dp, fill)
         } else {
             fill.color = Color.BLACK
             c.drawCircle(cx, cy, 4 * dp, fill)
