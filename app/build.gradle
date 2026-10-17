@@ -13,7 +13,9 @@ android {
         targetSdk 34
         // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
-        versionName System.getenv('VERSION_NAME') ?: '0.0.1'
+        versionName System.getenv('VERSION_NAME') ?: (rootProject.file('VERSION').text.trim() + '-dev')
+        // Shown in About; CI passes the date of the run
+        buildConfigField 'String', 'BUILD_DATE', '"' + (System.getenv('BUILD_DATE') ?: new Date().format('yyyy-MM-dd')) + '"'
         // Boox tablets are arm64
         ndk { abiFilters 'arm64-v8a' }
     }
@@ -44,6 +46,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = '17' }
+    buildFeatures { buildConfig true }
     packagingOptions {
         // onyxsdk-pen and mmkv both ship libc++_shared.so
         jniLibs {

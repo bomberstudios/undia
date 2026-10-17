@@ -10,6 +10,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,6 +26,8 @@ class MainActivity : Activity() {
     private lateinit var menu: ScrollView
     private lateinit var calendar: CalendarGrid
     private lateinit var backToToday: View
+    private lateinit var aboutLayer: FrameLayout
+    private lateinit var aboutCard: LinearLayout
     private lateinit var modeButton: ModeButton
 
     private var today = LocalDate.now()
@@ -68,6 +71,7 @@ class MainActivity : Activity() {
                 exportThen { "Saved " + Exporter.saveAsPdf(this@MainActivity, it) + " to Downloads" }
             }
             addItem(this, "Share…") { exportThen { Exporter.share(this@MainActivity, it) } }
+            addItem(this, "About") { showAbout() }
             backToToday = addItem(this, "Back to today") { canvas.showDay(today, today) }
         }
 
@@ -91,17 +95,91 @@ class MainActivity : Activity() {
             addView(menu, FrameLayout.LayoutParams((320 * dp).toInt(), -2))
         }
 
+        aboutCard = buildAboutCard(dp)
+        aboutLayer = FrameLayout(this).apply {
+            visibility = View.GONE
+            isClickable = true
+            setOnClickListener { hideAbout() } // tap anywhere to close
+            addView(aboutCard, FrameLayout.LayoutParams(
+                minOf((460 * dp).toInt(), resources.displayMetrics.widthPixels * 9 / 10), -2, Gravity.CENTER
+            ))
+        }
+
         setContentView(FrameLayout(this).apply {
             addView(canvas, FrameLayout.LayoutParams(-1, -1))
             addView(modeButton, FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.END).apply {
                 setMargins(margin, margin, margin, margin)
             })
             addView(menuLayer, FrameLayout.LayoutParams(-1, -1))
+            addView(aboutLayer, FrameLayout.LayoutParams(-1, -1))
         })
 
         val pages = File(filesDir, "pages").apply { mkdirs() }
         canvas.pagesDir = pages
         canvas.showDay(today, today, refresh = false)
+    }
+
+    private fun buildAboutCard(dp: Float): LinearLayout {
+        val zodiak = resources.getFont(R.font.zodiak)
+        fun text(value: String, sizeSp: Float, gravity: Int, topDp: Int, color: Int = Color.BLACK) =
+            TextView(this).apply {
+                text = value
+                textSize = sizeSp
+                typeface = zodiak
+                fontFeatureSettings = "onum"
+                setTextColor(color)
+                this.gravity = gravity
+                setLineSpacing(0f, 1.15f)
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = (topDp * dp).toInt() }
+            }
+
+        val version = packageManager.getPackageInfo(packageName, 0).versionName
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (24 * dp).toInt()
+            setPadding(pad, pad, pad, pad)
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                setStroke((2 * dp).toInt(), Color.BLACK)
+                cornerRadius = 16 * dp
+            }
+            addView(ImageView(context).apply {
+                setImageDrawable(getDrawable(R.mipmap.ic_launcher))
+                contentDescription = "undia icon"
+            }, LinearLayout.LayoutParams((88 * dp).toInt(), (88 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL })
+            addView(text("undia", 26f, Gravity.CENTER, 8))
+            addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 13f, Gravity.CENTER, 0, Color.rgb(0x44, 0x44, 0x44)))
+            addView(text(
+                "One page per day. Today's page is yours to fill, and it can only be added to: nothing is erased, undone or cleared. At midnight a new page begins.",
+                15f, Gravity.START, 20
+            ))
+            addView(text(
+                "Past days are for reading, not editing. You may still scribble on them, but that ink is dotted, fades within seconds and is never saved. A day you left empty offers a koan instead.",
+                15f, Gravity.START, 12
+            ))
+            addView(text(
+                "Tap the circle, or tap with three fingers, to switch between pen and highlighter. Swipe to turn pages, double-tap to return to today, hold to open the menu.",
+                15f, Gravity.START, 12
+            ))
+            addView(text(
+                "undia is a small bet on commitment and impermanence: what you wrote today stays as it was written, and what you didn't write is left alone. No streaks, no backlog, no tidying up.",
+                15f, Gravity.START, 12
+            ))
+            addView(text("Made by Ale Muñoz", 12f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
+        }
+    }
+
+    private fun showAbout() {
+        canvas.pauseInput()
+        aboutLayer.visibility = View.VISIBLE
+    }
+
+    private fun hideAbout() {
+        if (aboutLayer.visibility != View.VISIBLE) return
+        val area = Rect(aboutCard.left, aboutCard.top, aboutCard.right, aboutCard.bottom)
+        aboutLayer.visibility = View.GONE
+        canvas.resumeInput()
+        canvas.repaint(area)
     }
 
     private fun addItem(parent: LinearLayout, label: String, onClick: () -> Unit): View {
@@ -192,6 +270,6 @@ class MainActivity : Activity() {
         super.onResume()
         checkRollover() // the date may have changed while the app was in the background
         scheduleRollover()
-        if (menuLayer.visibility != View.VISIBLE) canvas.resumeInput()
+        if (menuLayer.visibility != View.VISIBLE && aboutLayer.visibility != View.VISIBLE) canvas.resumeInput()
     }
 }

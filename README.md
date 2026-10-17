@@ -30,6 +30,7 @@ The menu has a **calendar** to jump to any day up to today (past days open read-
 - Copy to clipboard (the page as a PNG)
 - Save as PDF (to Downloads)
 - Share… (Android share sheet, for example LocalSend)
+- About (how the app works, its version and build date)
 - Back to today (when you are on a past day)
 
 Past pages show their date, centered at the top in the same font as the koans (Zodiak Italic). Today's page shows no date.

@@ -51,7 +51,7 @@ jobs:
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: BUILD_DATE=$(date -u +%F) ./gradlew assembleRelease
 
       - name: Verify signature
         run: |
