@@ -648,7 +648,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
 
     private val koanPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
-        typeface = resources.getFont(R.font.zodiak_italic)
+        typeface = resources.getFont(R.font.zodiak_light_italic)
         fontFeatureSettings = "onum" // old-style figures, when the font has them
         letterSpacing = -0.02f // em; a little tighter than the font default
     }
@@ -656,6 +656,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val datePaint = TextPaint(koanPaint).apply {
         textAlign = Paint.Align.CENTER
         color = DATE_COLOR
+        typeface = resources.getFont(R.font.zodiak_italic) // the date stays regular italic; only the koans are light
     }
     private val dateFormat = DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")
 

@@ -134,6 +134,7 @@ class MainActivity : Activity() {
     private fun buildAboutCard(dp: Float): LinearLayout {
         val zodiak = resources.getFont(R.font.zodiak)
         val zodiakItalic = resources.getFont(R.font.zodiak_italic)
+        val zodiakBold = resources.getFont(R.font.zodiak_bold)
         fun text(value: String, sizeSp: Float, gravity: Int, topDp: Int, color: Int = Color.BLACK, face: Typeface = zodiak) =
             TextView(this).apply {
                 text = value
@@ -162,7 +163,7 @@ class MainActivity : Activity() {
                 setImageDrawable(getDrawable(R.mipmap.ic_launcher))
                 contentDescription = "undia icon"
             }, LinearLayout.LayoutParams((88 * dp).toInt(), (88 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL })
-            addView(text("undia", 28f, Gravity.CENTER, 8))
+            addView(text("undia", 28f, Gravity.CENTER, 8, face = zodiakBold))
             addView(text("The notebook that does LESS", 17f, Gravity.CENTER, 0, face = zodiakItalic))
             addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 14f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)))
             addView(text("undia is a half notebook, half philosophy manifesto:", 17f, Gravity.CENTER, 18))
