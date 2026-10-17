@@ -6,7 +6,9 @@
         tools:replace="android:allowBackup,android:label"
         android:name=".SketchApp"
         android:allowBackup="false"
-        android:label="Undia"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="undia"
         android:theme="@style/Theme.Sketch">
         <provider
             android:name="androidx.core.content.FileProvider"

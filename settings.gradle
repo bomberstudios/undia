@@ -20,5 +20,5 @@ dependencyResolutionManagement {
         maven { url "https://jitpack.io" }
     }
 }
-rootProject.name = "Undia"
+rootProject.name = "undia"
 include ':app'

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The white "1" from design/undia.svg, centered. Launchers show only the middle 72 of the
+     108 dp, which blows everything up by 1.5, so the SVG's own scale (8.037) is cut to 2/3 of
+     that (5.358) to make the "1" look as it does in the SVG. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:translateX="194.887"
+        android:translateY="346.014"
+        android:scaleX="5.357980041"
+        android:scaleY="5.357980041">
+        <path
+            android:fillColor="#ffffff"
+            android:pathData="M6.672,-3.432 C6.312,-3.056 5.868,-2.868 5.34,-2.868 L1.692,-2.868 L1.692,0 L21.36,0 L21.36,-2.868 L17.712,-2.868 C17.184,-2.868 16.74,-3.056 16.38,-3.432 C16.02,-3.808 15.84,-4.396 15.84,-5.196 L15.84,-33.6 L10.008,-33.6 L9.192,-31.908 C8.472,-30.42 7.506,-29.402 6.294,-28.854 C5.082,-28.306 3.468,-27.928 1.452,-27.72 L1.452,-24.852 L7.212,-24.852 L7.212,-5.196 C7.212,-4.396 7.032,-3.808 6.672,-3.432 Z" />
+    </group>
+</vector>

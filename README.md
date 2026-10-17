@@ -1,4 +1,4 @@
-# Undia
+# undia
 
 A one-page-a-day sketchbook for the Boox Go6 Gen2 (Android 14).
 
@@ -8,7 +8,7 @@ You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, 
 
 - **One page per day.** Today's page is the only one you can draw on.
 - **Notes renew at 00:00 local time.** When the date changes, a new blank page starts. If you are looking at the page of the day that just ended when midnight passes, the app moves you to the new one.
-- **Old days are read-only.** You can go back to any day in the past to revisit your notes, but you can't edit them.
+- **Old days are read-only.** You can go back to any day in the past to revisit your notes, but you can't edit them. You can still scribble on them, but that ink is gray and dotted to show it is temporary: it is never saved and disappears when you leave the page. It also fades: it gets lighter every second and is gone after six seconds.
 - **Empty days give you a koan.** Going back to a day where you did not draw anything shows a koan instead of a blank page. The same day always shows the same koan.
 - **Nothing is erased.** There is no way to erase or clear a page, in the app or by gesture.
 
@@ -19,6 +19,8 @@ You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, 
 | Draw with the pen | 0.2 mm black line |
 | Tap the round button (top right), or tap with three fingers | Switch between pen (small black dot) and highlighter (larger colored circle) |
 | Touch the screen with the pen's side button held | Same switch, from the pen |
+| Swipe left or right with one finger | Next or previous day (never past today) |
+| Double-tap with one finger | Go back to today |
 | Hold one finger on the screen | Open the menu |
 
 The highlighter is a 4 mm #ffcc00 stroke (a light gray on the black-and-white panel) that keeps your ink readable underneath. It goes back to the pen by itself 0.8 s after a highlight stroke, so you can highlight several things in quick succession.
@@ -28,10 +30,9 @@ The menu has a **calendar** to jump to any day up to today (past days open read-
 - Copy to clipboard (the page as a PNG)
 - Save as PDF (to Downloads)
 - Share… (Android share sheet, for example LocalSend)
-- Print
 - Back to today (when you are on a past day)
 
-The date of the page you are on is shown next to the round button.
+Past pages show their date, centered at the top in the same font as the koans (Zodiak Italic). Today's page shows no date.
 
 ## Building
 
@@ -56,5 +57,7 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 
 - `SketchView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover
-- `Exporter.kt`: clipboard, PDF, share and print
+- `Exporter.kt`: clipboard, PDF and share
 - `Koans.kt`: the koans for empty days
+- `fonts/`: the Zodiak font files (copied, renamed, into `res/font/` for the app, which uses Zodiak for all text; the date and koans are in Zodiak Italic)
+- `design/undia.svg`: the app icon source; the Android version is `res/drawable/ic_launcher_foreground.xml` on an orange background

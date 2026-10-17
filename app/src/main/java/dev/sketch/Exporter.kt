@@ -13,7 +13,6 @@ import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
-import androidx.print.PrintHelper
 import java.io.File
 import java.io.OutputStream
 import java.text.SimpleDateFormat
@@ -29,7 +28,7 @@ object Exporter {
         val file = File(dir, "undia.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        val clip = ClipData.newUri(context.contentResolver, "Undia", uri)
+        val clip = ClipData.newUri(context.contentResolver, "undia", uri)
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
     }
 
@@ -82,12 +81,5 @@ object Exporter {
         }
         activity.runOnUiThread { activity.startActivity(Intent.createChooser(send, "Share page")) }
         return null
-    }
-
-    fun print(activity: Activity, bitmap: Bitmap) {
-        PrintHelper(activity).apply {
-            scaleMode = PrintHelper.SCALE_MODE_FIT
-            colorMode = PrintHelper.COLOR_MODE_MONOCHROME
-        }.printBitmap("Undia", bitmap)
     }
 }

@@ -3,5 +3,7 @@
     <style name="Theme.Sketch" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:windowFullscreen">true</item>
+        <item name="android:fontFamily">@font/zodiak</item>
     </style>
+
 </resources>

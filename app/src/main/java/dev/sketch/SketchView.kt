@@ -4,21 +4,23 @@ import android.content.Context
 import java.io.File
 import java.util.Locale
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
-import android.graphics.Typeface
 import android.os.Handler
 import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
 import android.os.Looper
+import android.os.SystemClock
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -49,21 +51,38 @@ class SketchView(context: Context) : SurfaceView(context) {
         const val PEN_WIDTH_PX = PEN_WIDTH_MM / 25.4f * PANEL_PPI // ~2.36 px
         const val HIGHLIGHT_WIDTH_MM = 4f
         const val HIGHLIGHT_WIDTH_PX = HIGHLIGHT_WIDTH_MM / 25.4f * PANEL_PPI // ~47 px
+        val DATE_COLOR = Color.rgb(0xff, 0x66, 0x00) // #ff6600
+        // Ink on a past page is temporary: gray and dotted
+        val TEMP_COLOR = Color.rgb(0x88, 0x88, 0x88)
+        const val TEMP_DOT_WIDTH_PX = 3.5f
+        const val TEMP_DOT_GAP_PX = 8f
+        // Temporary ink gets lighter every FADE_STEP_MS and is gone after FADE_STEPS more steps
+        const val FADE_STEP_MS = 1_000L
+        const val FADE_STEPS = 5
         const val HIGHLIGHT_HEX = "#ffcc00"
         val HIGHLIGHT_COLOR = Color.parseColor(HIGHLIGHT_HEX)
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
+        const val TAP_MAX_SINGLE_MS = 250L
+        const val SWIPE_MAX_MS = 800L
+        const val SWIPE_MIN_FRACTION = 0.25f // of the page width
         const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
         const val SMOOTH_DELAY_MS = 300L
     }
 
-    private class Stroke(val highlight: Boolean, val xy: FloatArray)
+    private class Stroke(val highlight: Boolean, val xy: FloatArray) {
+        // Only used by temporary strokes: when it was drawn and how faded it is (0 = fresh)
+        val born: Long = SystemClock.elapsedRealtime()
+        var level = 0
+    }
 
     // Guarded by synchronized(this), like the bitmap
     private val strokes = ArrayList<Stroke>()
+    // Scribbles on past pages: shown, never saved, gone when the page changes
+    private val tempStrokes = ArrayList<Stroke>()
 
     /** Where the daily pages (yyyy-MM-dd.svg) live. Set before [showDay]. */
     var pagesDir: File? = null
@@ -89,6 +108,8 @@ class SketchView(context: Context) : SurfaceView(context) {
     private val main = Handler(Looper.getMainLooper())
     private val pendingSmooth = Rect()
     private val smoothRunnable = Runnable { smoothPending() }
+    private val fadeRunnable = Runnable { fadeStep() }
+    @Volatile private var penDown = false
     private val revertRunnable = Runnable { if (highlighting) setHighlighter(false) }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -97,6 +118,15 @@ class SketchView(context: Context) : SurfaceView(context) {
         strokeWidth = PEN_WIDTH_PX
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
+    }
+
+    private val tempPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = TEMP_COLOR
+        style = Paint.Style.STROKE
+        strokeWidth = TEMP_DOT_WIDTH_PX
+        strokeCap = Paint.Cap.ROUND // a zero-length dash with round caps is a dot
+        strokeJoin = Paint.Join.ROUND
+        pathEffect = DashPathEffect(floatArrayOf(0.01f, TEMP_DOT_GAP_PX), 0f)
     }
 
     // DARKEN keeps the ink readable under the highlight, and overlapping passes don't stack
@@ -114,8 +144,12 @@ class SketchView(context: Context) : SurfaceView(context) {
             // Don't repaint under the pen while the user is still writing
             main.removeCallbacks(smoothRunnable)
             main.removeCallbacks(revertRunnable) // a quick next highlight keeps the highlighter
+            penDown = true
         }
-        override fun onEndRawDrawing(b: Boolean, p: TouchPoint?) {}
+        override fun onEndRawDrawing(b: Boolean, p: TouchPoint?) {
+            penDown = false
+            if (!editable) main.post { scheduleFade() }
+        }
         override fun onRawDrawingTouchPointMoveReceived(p: TouchPoint?) {}
         override fun onRawDrawingTouchPointListReceived(list: TouchPointList?) {
             commitStroke(list, highlighting)
@@ -125,7 +159,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         // We never erase: it flips between pen and highlighter, and the stroke is dropped.
         override fun onBeginRawErasing(b: Boolean, p: TouchPoint?) {
             main.removeCallbacks(smoothRunnable)
-            setHighlighter(!highlighting)
+            if (editable) setHighlighter(!highlighting)
         }
         override fun onEndRawErasing(b: Boolean, p: TouchPoint?) {}
         override fun onRawErasingTouchPointMoveReceived(p: TouchPoint?) {}
@@ -143,6 +177,32 @@ class SketchView(context: Context) : SurfaceView(context) {
     private val startX = FloatArray(3)
     private val startY = FloatArray(3)
 
+    private var lastTapAt = 0L
+    private var lastTapX = 0f
+    private var lastTapY = 0f
+
+    /** Two quick taps in the same place go back to today. */
+    private fun singleTap(e: MotionEvent) {
+        val doubleSlop = ViewConfiguration.get(context).scaledDoubleTapSlop
+        val isSecond = lastTapAt != 0L && e.eventTime - lastTapAt < ViewConfiguration.getDoubleTapTimeout() &&
+            Math.hypot((e.x - lastTapX).toDouble(), (e.y - lastTapY).toDouble()) <= doubleSlop
+        if (isSecond) {
+            lastTapAt = 0L
+            if (day != today) showDay(today, today)
+        } else {
+            lastTapAt = e.eventTime
+            lastTapX = e.x
+            lastTapY = e.y
+        }
+    }
+
+    /** Moves [delta] days from the page being shown; there are no pages after today. */
+    private fun swipeDay(delta: Long) {
+        val target = day.plusDays(delta)
+        if (target.isAfter(today)) return
+        showDay(target, today)
+    }
+
     /** A finger held still on the canvas; arguments are the view coordinates. */
     var onLongPress: ((x: Float, y: Float) -> Unit)? = null
     private var pressX = 0f
@@ -159,7 +219,19 @@ class SketchView(context: Context) : SurfaceView(context) {
                 pressY = e.y
                 main.postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> main.removeCallbacks(longPressRunnable)
+            MotionEvent.ACTION_UP -> {
+                main.removeCallbacks(longPressRunnable)
+                val dx = e.x - pressX
+                val dy = e.y - pressY
+                // One finger, mostly sideways, far and quick enough: turn the page
+                if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < SWIPE_MAX_MS &&
+                    Math.abs(dx) > width * SWIPE_MIN_FRACTION && Math.abs(dx) > 2 * Math.abs(dy)
+                ) swipeDay(if (dx < 0) 1 else -1)
+                else if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < TAP_MAX_SINGLE_MS &&
+                    Math.hypot(dx.toDouble(), dy.toDouble()) <= slop
+                ) singleTap(e)
+            }
+            MotionEvent.ACTION_CANCEL -> main.removeCallbacks(longPressRunnable)
             MotionEvent.ACTION_POINTER_DOWN -> {
                 main.removeCallbacks(longPressRunnable)
                 if (e.pointerCount > 3) {
@@ -205,10 +277,16 @@ class SketchView(context: Context) : SurfaceView(context) {
         main.removeCallbacks(revertRunnable)
         highlighting = on
         main.post { onModeChanged?.invoke(on) }
+        applyStroke()
+    }
+
+    /** What the SDK draws live: black pen, highlighter, or gray on a past page. */
+    private fun applyStroke() {
+        val marker = highlighting && editable
         touchHelper
-            .setStrokeStyle(if (on) StrokeStyle.MARKER else StrokeStyle.PENCIL)
-            .setStrokeWidth(if (on) HIGHLIGHT_WIDTH_PX else PEN_WIDTH_PX)
-            .setStrokeColor(if (on) HIGHLIGHT_COLOR else Color.BLACK)
+            .setStrokeStyle(if (marker) StrokeStyle.MARKER else StrokeStyle.PENCIL)
+            .setStrokeWidth(if (marker) HIGHLIGHT_WIDTH_PX else PEN_WIDTH_PX)
+            .setStrokeColor(if (!editable) TEMP_COLOR else if (marker) HIGHLIGHT_COLOR else Color.BLACK)
     }
 
     /**
@@ -246,6 +324,17 @@ class SketchView(context: Context) : SurfaceView(context) {
         }
     }
 
+    private fun renderTemp(c: Canvas, s: Stroke) {
+        val v = Color.red(TEMP_COLOR) + s.level * (255 - Color.red(TEMP_COLOR)) / (FADE_STEPS + 1)
+        tempPaint.color = Color.rgb(v, v, v)
+        val path = Path().apply {
+            moveTo(s.xy[0], s.xy[1])
+            if (s.xy.size == 2) lineTo(s.xy[0] + 0.01f, s.xy[1])
+            for (i in 2 until s.xy.size step 2) lineTo(s.xy[i], s.xy[i + 1])
+        }
+        c.drawPath(path, tempPaint)
+    }
+
     private fun bounds(s: Stroke): Rect {
         var l = Float.MAX_VALUE; var t = Float.MAX_VALUE; var r = -Float.MAX_VALUE; var b = -Float.MAX_VALUE
         for (i in s.xy.indices step 2) {
@@ -259,18 +348,28 @@ class SketchView(context: Context) : SurfaceView(context) {
     private fun commitStroke(list: TouchPointList?, highlight: Boolean) {
         val pts = list?.points ?: return
         if (pts.isEmpty()) return
-        val stroke = Stroke(highlight, FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y })
+        val xy = FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y }
+        val temporary = !editable
+        val stroke = Stroke(highlight && !temporary, xy)
         synchronized(this) {
-            strokes.add(stroke)
-            dirty = true
-            bitmapCanvas?.let { render(it, stroke) }
+            if (temporary) {
+                tempStrokes.add(stroke)
+                bitmapCanvas?.let { renderTemp(it, stroke) }
+            } else {
+                strokes.add(stroke)
+                dirty = true
+                bitmapCanvas?.let { render(it, stroke) }
+            }
         }
         val area = bounds(stroke)
         blit(area)
         main.post {
-            main.removeCallbacks(saveRunnable)
-            main.postDelayed(saveRunnable, SAVE_DELAY_MS)
-            if (highlight) {
+            if (temporary) scheduleFade()
+            if (!temporary) {
+                main.removeCallbacks(saveRunnable)
+                main.postDelayed(saveRunnable, SAVE_DELAY_MS)
+            }
+            if (stroke.highlight) {
                 main.removeCallbacks(revertRunnable)
                 main.postDelayed(revertRunnable, REVERT_TO_PEN_MS)
             }
@@ -352,7 +451,7 @@ class SketchView(context: Context) : SurfaceView(context) {
             .setExcludeRect(listOf(Rect(w - reservedWidth, 0, w, reservedHeight)))
             .openRawDrawing()
         setHighlighter(highlighting)
-        touchHelper.setRawDrawingEnabled(editable)
+        touchHelper.setRawDrawingEnabled(true)
         rawOpen = true
     }
 
@@ -453,6 +552,44 @@ class SketchView(context: Context) : SurfaceView(context) {
         }
     }
 
+    private fun scheduleFade() {
+        main.removeCallbacks(fadeRunnable)
+        val now = SystemClock.elapsedRealtime()
+        val next = synchronized(this) {
+            tempStrokes.minOfOrNull { it.born + ((now - it.born) / FADE_STEP_MS + 1) * FADE_STEP_MS - now }
+        } ?: return
+        main.postDelayed(fadeRunnable, next.coerceAtLeast(300L))
+    }
+
+    /** Lightens temporary ink that has reached its next step, and drops what has faded out. */
+    private fun fadeStep() {
+        if (penDown) { // never redraw under the pen
+            main.postDelayed(fadeRunnable, 1000L)
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        var area: Rect? = null
+        synchronized(this) {
+            val it = tempStrokes.iterator()
+            var changed = false
+            while (it.hasNext()) {
+                val s = it.next()
+                val level = ((now - s.born) / FADE_STEP_MS).toInt()
+                if (level > FADE_STEPS || level != s.level) {
+                    area = area?.apply { union(bounds(s)) } ?: bounds(s)
+                    changed = true
+                    if (level > FADE_STEPS) it.remove() else s.level = level
+                }
+            }
+            if (changed) redrawAll()
+        }
+        area?.let {
+            blit(it)
+            repaint(it)
+        }
+        scheduleFade()
+    }
+
     /**
      * Shows [newDay]'s page, given that [newToday] is the current calendar day. Today's page is
      * editable, any other day is read-only. Call from the main thread.
@@ -460,6 +597,7 @@ class SketchView(context: Context) : SurfaceView(context) {
     fun showDay(newDay: LocalDate, newToday: LocalDate, refresh: Boolean = true) {
         main.removeCallbacks(saveRunnable)
         main.removeCallbacks(revertRunnable)
+        main.removeCallbacks(fadeRunnable)
         try {
             save() // the page we are leaving
         } catch (t: Exception) {
@@ -470,10 +608,15 @@ class SketchView(context: Context) : SurfaceView(context) {
             today = newToday
             strokes.clear()
             strokes.addAll(loaded)
+            tempStrokes.clear()
             dirty = false
             redrawAll()
         }
-        if (rawOpen) touchHelper.setRawDrawingEnabled(editable)
+        if (rawOpen) {
+            if (!editable) highlighting = false // the highlighter is for today's page only
+            applyStroke()
+            touchHelper.setRawDrawingEnabled(true)
+        }
         blit()
         main.post {
             if (refresh) {
@@ -489,7 +632,20 @@ class SketchView(context: Context) : SurfaceView(context) {
 
     private val koanPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
-        typeface = Typeface.create(Typeface.SERIF, Typeface.ITALIC)
+        typeface = resources.getFont(R.font.zodiak_italic)
+        fontFeatureSettings = "onum" // old-style figures, when the font has them
+    }
+
+    private val datePaint = TextPaint(koanPaint).apply {
+        textAlign = Paint.Align.CENTER
+        color = DATE_COLOR
+    }
+    private val dateFormat = DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")
+
+    /** The date, centered at the top of a past page, in the same font as the koans. */
+    private fun drawDate(c: Canvas) {
+        datePaint.textSize = c.width * 0.03825f // 15% smaller than 0.045
+        c.drawText(day.format(dateFormat), c.width / 2f, c.height * 0.06f + datePaint.textSize, datePaint)
     }
 
     private fun drawKoan(c: Canvas) {
@@ -510,7 +666,9 @@ class SketchView(context: Context) : SurfaceView(context) {
     private fun redrawAll() {
         bitmapCanvas?.let { c ->
             c.drawColor(Color.WHITE)
+            if (!editable) drawDate(c)
             if (!editable && strokes.isEmpty()) drawKoan(c) else strokes.forEach { render(c, it) }
+            tempStrokes.forEach { renderTemp(c, it) }
         }
     }
 
@@ -521,7 +679,8 @@ class SketchView(context: Context) : SurfaceView(context) {
     fun resumeInput() {
         if (rawOpen) {
             blit()
-            touchHelper.setRawDrawingEnabled(editable)
+            touchHelper.setRawDrawingEnabled(true)
+            main.post { fadeStep() } // catch up on any fading missed while paused
         }
     }
 }

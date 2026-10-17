@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.View
-import android.widget.CalendarView
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -19,16 +18,13 @@ import java.io.File
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 class MainActivity : Activity() {
     private lateinit var canvas: SketchView
     private lateinit var menuLayer: FrameLayout
     private lateinit var menu: ScrollView
-    private lateinit var calendar: CalendarView
+    private lateinit var calendar: CalendarGrid
     private lateinit var backToToday: View
-    private lateinit var dateLabel: TextView
     private lateinit var modeButton: ModeButton
 
     private var today = LocalDate.now()
@@ -40,11 +36,10 @@ class MainActivity : Activity() {
         val dp = resources.displayMetrics.density
         val size = (48 * dp).toInt()
         val margin = (8 * dp).toInt()
-        val labelWidth = (168 * dp).toInt()
 
         canvas = SketchView(this).apply {
-            // Pen strokes in this corner are ignored so the button can be tapped (the label sits there too)
-            reservedWidth = size + 2 * margin + labelWidth
+            // Pen strokes in this corner are ignored so the button can be tapped
+            reservedWidth = size + 2 * margin
             reservedHeight = size + 2 * margin
             onLongPress = { _, _ -> showMenu() }
         }
@@ -54,20 +49,12 @@ class MainActivity : Activity() {
         }
         canvas.onModeChanged = { modeButton.highlighting = it }
 
-        dateLabel = TextView(this).apply {
-            textSize = 14f
-            setTextColor(Color.BLACK)
-            gravity = Gravity.CENTER_VERTICAL or Gravity.END
-        }
-        canvas.onDayChanged = { day, editable ->
-            val text = day.format(DateTimeFormatter.ofPattern("EEE d MMM yyyy"))
-            dateLabel.text = if (editable) text else "$text · read only"
+        canvas.onDayChanged = { _, editable ->
             modeButton.visibility = if (editable) View.VISIBLE else View.INVISIBLE
         }
 
-        calendar = CalendarView(this).apply {
-            setOnDateChangeListener { _, year, month, dayOfMonth ->
-                val picked = LocalDate.of(year, month + 1, dayOfMonth)
+        calendar = CalendarGrid(this).apply {
+            onPick = { picked ->
                 hideMenu()
                 if (picked != canvas.day) canvas.showDay(picked, today)
             }
@@ -75,13 +62,12 @@ class MainActivity : Activity() {
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(calendar, LinearLayout.LayoutParams(-1, (320 * dp).toInt()))
+            addView(calendar, LinearLayout.LayoutParams(-1, -2))
             addItem(this, "Copy to clipboard") { exportThen { Exporter.copyToClipboard(this@MainActivity, it); "Copied" } }
             addItem(this, "Save as PDF") {
                 exportThen { "Saved " + Exporter.saveAsPdf(this@MainActivity, it) + " to Downloads" }
             }
             addItem(this, "Share…") { exportThen { Exporter.share(this@MainActivity, it) } }
-            addItem(this, "Print") { exportThen { Exporter.print(this@MainActivity, it); null } }
             backToToday = addItem(this, "Back to today") { canvas.showDay(today, today) }
         }
 
@@ -107,9 +93,6 @@ class MainActivity : Activity() {
 
         setContentView(FrameLayout(this).apply {
             addView(canvas, FrameLayout.LayoutParams(-1, -1))
-            addView(dateLabel, FrameLayout.LayoutParams(labelWidth, size, Gravity.TOP or Gravity.END).apply {
-                setMargins(0, margin, size + 2 * margin, 0)
-            })
             addView(modeButton, FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.END).apply {
                 setMargins(margin, margin, margin, margin)
             })
@@ -127,6 +110,8 @@ class MainActivity : Activity() {
         return TextView(this).apply {
             text = label
             textSize = 18f
+            typeface = resources.getFont(R.font.zodiak)
+            fontFeatureSettings = "onum" // old-style figures, when the font has them
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER_VERTICAL
             setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
@@ -138,10 +123,7 @@ class MainActivity : Activity() {
         // The SDK would keep drawing under the menu, so the pen is off while it is open
         canvas.pauseInput()
 
-        // Only days up to today can be opened
-        val zone = ZoneId.systemDefault()
-        calendar.maxDate = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
-        calendar.setDate(canvas.day.atTime(12, 0).atZone(zone).toInstant().toEpochMilli(), false, true)
+        calendar.show(canvas.day, today)
         backToToday.visibility = if (canvas.day == today) View.GONE else View.VISIBLE
 
         menuLayer.visibility = View.VISIBLE
