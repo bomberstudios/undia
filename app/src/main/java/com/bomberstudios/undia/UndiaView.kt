@@ -1,4 +1,4 @@
-package dev.sketch
+package com.bomberstudios.undia
 
 import android.content.Context
 import java.io.File
@@ -44,7 +44,7 @@ import com.onyx.android.sdk.pen.style.StrokeStyle
  * One page per day: today's page can be drawn on and never erased; past days are read-only,
  * and a past day with no drawing shows a koan.
  */
-class SketchView(context: Context) : SurfaceView(context) {
+class UndiaView(context: Context) : SurfaceView(context) {
     private companion object {
         const val PEN_WIDTH_MM = 0.2f
         // Go 6 Gen2: 1264x1680 on a 6" panel = 300 ppi

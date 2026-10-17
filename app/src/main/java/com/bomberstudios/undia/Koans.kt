@@ -1,4 +1,4 @@
-package dev.sketch
+package com.bomberstudios.undia
 
 import java.time.LocalDate
 import java.util.Random

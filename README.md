@@ -1,6 +1,6 @@
 # undia
 
-A one-page-a-day sketchbook for the Boox Go6 Gen2 (Android 14).
+A one-page-a-day notebook for the Boox Go6 Gen2 (Android 14).
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
@@ -48,15 +48,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Every push to `main` that changes more than documentation (`*.md`, `docs/`, `LICENSE`) runs `.github/workflows/release.yml`, which builds a signed release APK and publishes it as a GitHub release named like `v0.0.5-a638359bcf`: the number comes from the `VERSION` file at the root of the repo, followed by the first 10 characters of the commit hash. To change the version, edit `VERSION` in a commit (it must look like `1.2.3`). Pull requests only get a debug build (`build.yml`), so the usual flow is to work on a branch, open a PR and merge it.
 
-The signing key is stored in the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. A copy of the key and its password is in `~/.config/boox-sketch/` on the machine that created it; keep a backup, because an app can only be updated by APKs signed with the same key. A local release build uses the same key when `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set in the environment, and falls back to the debug key otherwise.
+The signing key is stored in the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. A copy of the key and its password is in `~/.config/undia/` on the machine that created it; keep a backup, because an app can only be updated by APKs signed with the same key. A local release build uses the same key when `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set in the environment, and falls back to the debug key otherwise.
 
 The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it. The reference implementation for the Onyx SDK usage is [booxday](https://github.com/fortolano/booxday).
 
 ## Where things are
 
-Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline per stroke) in the app's private storage, so they open in any browser or vector editor. Code is in `app/src/main/java/dev/sketch`:
+Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline per stroke) in the app's private storage, so they open in any browser or vector editor. Code is in `app/src/main/java/com/bomberstudios/undia`:
 
-- `SketchView.kt`: the canvas, the Onyx pen input, the daily pages and saving
+- `UndiaView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover
 - `Exporter.kt`: clipboard, PDF and share
 - `Koans.kt`: the koans for empty days

@@ -1,4 +1,4 @@
-package dev.sketch
+package com.bomberstudios.undia
 
 import android.app.Activity
 import android.graphics.Color
@@ -21,7 +21,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 class MainActivity : Activity() {
-    private lateinit var canvas: SketchView
+    private lateinit var canvas: UndiaView
     private lateinit var menuLayer: FrameLayout
     private lateinit var menu: ScrollView
     private lateinit var calendar: CalendarGrid
@@ -40,7 +40,7 @@ class MainActivity : Activity() {
         val size = (48 * dp).toInt()
         val margin = (8 * dp).toInt()
 
-        canvas = SketchView(this).apply {
+        canvas = UndiaView(this).apply {
             // The pen is ignored only around the mark itself (the button is 48 dp, the mark is smaller)
             val markBox = (32 * dp).toInt()
             reservedWidth = markBox

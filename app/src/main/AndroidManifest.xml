@@ -4,12 +4,12 @@
 
     <application
         tools:replace="android:allowBackup,android:label"
-        android:name=".SketchApp"
+        android:name=".UndiaApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="undia"
-        android:theme="@style/Theme.Sketch">
+        android:theme="@style/Theme.Undia">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'dev.sketch'
+    namespace 'com.bomberstudios.undia'
     compileSdk 35
 
     defaultConfig {
-        applicationId "dev.sketch"
+        applicationId "com.bomberstudios.undia"
         minSdk 29
         targetSdk 34
         // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)
