@@ -7,8 +7,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
@@ -32,16 +30,16 @@ object Exporter {
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
     }
 
-    private fun writePdf(bitmap: Bitmap, out: OutputStream) {
-        val widthPt = (bitmap.width / PANEL_PPI * 72).toInt()
-        val heightPt = (bitmap.height / PANEL_PPI * 72).toInt()
+    /** One page, drawn as vectors: strokes are paths and text is text, not a picture. */
+    private fun writePdf(page: UndiaView.PageSnapshot, out: OutputStream) {
+        val widthPt = (page.width / PANEL_PPI * 72).toInt()
+        val heightPt = (page.height / PANEL_PPI * 72).toInt()
         val pdf = PdfDocument()
         try {
-            val page = pdf.startPage(PdfDocument.PageInfo.Builder(widthPt, heightPt, 1).create())
-            page.canvas.drawBitmap(
-                bitmap, null, Rect(0, 0, widthPt, heightPt), Paint(Paint.FILTER_BITMAP_FLAG)
-            )
-            pdf.finishPage(page)
+            val p = pdf.startPage(PdfDocument.PageInfo.Builder(widthPt, heightPt, 1).create())
+            p.canvas.scale(72f / PANEL_PPI, 72f / PANEL_PPI) // draw in panel pixels
+            page.draw(p.canvas)
+            pdf.finishPage(p)
             pdf.writeTo(out)
         } finally {
             pdf.close()
@@ -51,7 +49,7 @@ object Exporter {
     private fun timestamp() = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
 
     /** Saves to Downloads; returns the file name. */
-    fun saveAsPdf(context: Context, bitmap: Bitmap): String {
+    fun saveAsPdf(context: Context, page: UndiaView.PageSnapshot): String {
         val name = "undia-${timestamp()}.pdf"
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
@@ -61,16 +59,16 @@ object Exporter {
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: error("Could not create $name")
-        resolver.openOutputStream(uri)!!.use { writePdf(bitmap, it) }
+        resolver.openOutputStream(uri)!!.use { writePdf(page, it) }
         return name
     }
 
     /** Opens Android's share sheet with the page as a PDF (LocalSend, Drive, etc.). */
-    fun share(activity: Activity, bitmap: Bitmap): String? {
+    fun share(activity: Activity, page: UndiaView.PageSnapshot): String? {
         val dir = File(activity.cacheDir, "shared").apply { mkdirs() }
         dir.listFiles { f -> f.name.startsWith("undia-") && f.name.endsWith(".pdf") }?.forEach { it.delete() }
         val file = File(dir, "undia-${timestamp()}.pdf")
-        file.outputStream().use { writePdf(bitmap, it) }
+        file.outputStream().use { writePdf(page, it) }
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
 
         val send = Intent(Intent.ACTION_SEND).apply {

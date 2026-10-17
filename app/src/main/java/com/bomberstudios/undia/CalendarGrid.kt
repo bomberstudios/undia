@@ -24,7 +24,7 @@ class CalendarGrid(context: Context) : View(context) {
     private val headerH = 56 * dp
     private val weekdayH = 32 * dp
     private val rowH = 44 * dp
-    // 1 em of the day numbers (18 sp) of space on each side
+    // 1 em of the day numbers (18 sp) of space on every side
     private val sidePad = 18 * sp
     private val firstDay = WeekFields.of(Locale.getDefault()).firstDayOfWeek
     private val monthFormat = DateTimeFormatter.ofPattern("LLLL yyyy")
@@ -72,7 +72,7 @@ class CalendarGrid(context: Context) : View(context) {
     override fun onMeasure(w: Int, h: Int) {
         setMeasuredDimension(
             MeasureSpec.getSize(w),
-            (headerH + weekdayH + rows() * rowH).toInt()
+            (sidePad + headerH + weekdayH + rows() * rowH + sidePad).toInt()
         )
     }
 
@@ -88,16 +88,16 @@ class CalendarGrid(context: Context) : View(context) {
 
     override fun onDraw(c: Canvas) {
         val canNext = month.isBefore(YearMonth.from(today))
-        c.drawText(month.format(monthFormat), width / 2f, textBaseline(titlePaint, headerH / 2), titlePaint)
-        c.drawText("‹", sidePad + headerH / 2, textBaseline(titlePaint, headerH / 2), titlePaint)
-        c.drawText("›", width - sidePad - headerH / 2, textBaseline(titlePaint, headerH / 2), if (canNext) titlePaint else futurePaint)
+        c.drawText(month.format(monthFormat), width / 2f, textBaseline(titlePaint, sidePad + headerH / 2), titlePaint)
+        c.drawText("‹", sidePad + headerH / 2, textBaseline(titlePaint, sidePad + headerH / 2), titlePaint)
+        c.drawText("›", width - sidePad - headerH / 2, textBaseline(titlePaint, sidePad + headerH / 2), if (canNext) titlePaint else futurePaint)
 
         val cw = cellWidth()
         for (i in 0 until 7) {
             val d = firstDay.plus(i.toLong())
             c.drawText(
                 d.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
-                sidePad + cw * i + cw / 2, textBaseline(weekdayPaint, headerH + weekdayH / 2), weekdayPaint
+                sidePad + cw * i + cw / 2, textBaseline(weekdayPaint, sidePad + headerH + weekdayH / 2), weekdayPaint
             )
         }
 
@@ -105,7 +105,7 @@ class CalendarGrid(context: Context) : View(context) {
         for (day in 1..month.lengthOfMonth()) {
             val cell = offset + day - 1
             val cx = sidePad + cw * (cell % 7) + cw / 2
-            val cy = headerH + weekdayH + rowH * (cell / 7) + rowH / 2
+            val cy = sidePad + headerH + weekdayH + rowH * (cell / 7) + rowH / 2
             val date = month.atDay(day)
             val r = minOf(cw, rowH) / 2 - 3 * dp
             val paint = when {
@@ -127,7 +127,7 @@ class CalendarGrid(context: Context) : View(context) {
         if (e.actionMasked != MotionEvent.ACTION_UP) return true
         val x = e.x
         val y = e.y
-        if (y < headerH) {
+        if (y < sidePad + headerH) {
             when {
                 x < sidePad + headerH -> month = month.minusMonths(1)
                 x > width - sidePad - headerH && month.isBefore(YearMonth.from(today)) -> month = month.plusMonths(1)
@@ -136,9 +136,9 @@ class CalendarGrid(context: Context) : View(context) {
             invalidate()
             return true
         }
-        if (y < headerH + weekdayH) return true
+        if (y < sidePad + headerH + weekdayH) return true
         val col = ((x - sidePad) / cellWidth()).toInt().coerceIn(0, 6)
-        val row = ((y - headerH - weekdayH) / rowH).toInt()
+        val row = ((y - sidePad - headerH - weekdayH) / rowH).toInt()
         val day = row * 7 + col - offset() + 1
         if (day in 1..month.lengthOfMonth()) {
             val date = month.atDay(day)

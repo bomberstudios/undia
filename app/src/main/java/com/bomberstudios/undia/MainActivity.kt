@@ -72,11 +72,18 @@ class MainActivity : Activity() {
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(calendar, LinearLayout.LayoutParams(-1, -2))
-            addItem(this, "Copy to clipboard") { exportThen { Exporter.copyToClipboard(this@MainActivity, it); "Copied" } }
-            addItem(this, "Save as PDF") {
-                exportThen { "Saved " + Exporter.saveAsPdf(this@MainActivity, it) + " to Downloads" }
+            addItem(this, "Copy to clipboard") {
+                val bitmap = canvas.snapshot() ?: return@addItem
+                runExport { Exporter.copyToClipboard(this@MainActivity, bitmap); "Copied" }
             }
-            addItem(this, "Share…") { exportThen { Exporter.share(this@MainActivity, it) } }
+            addItem(this, "Save as PDF") {
+                val page = canvas.pageSnapshot() ?: return@addItem
+                runExport { "Saved " + Exporter.saveAsPdf(this@MainActivity, page) + " to Downloads" }
+            }
+            addItem(this, "Share…") {
+                val page = canvas.pageSnapshot() ?: return@addItem
+                runExport { Exporter.share(this@MainActivity, page) }
+            }
             addItem(this, "About") { showAbout() }
             backToToday = addItem(this, "Back to today") { canvas.showDay(today, today) }
         }
@@ -240,12 +247,11 @@ class MainActivity : Activity() {
         canvas.repaint(area)
     }
 
-    /** Runs [action] on a snapshot off the main thread; a non-null result is shown as a toast. */
-    private fun exportThen(action: (android.graphics.Bitmap) -> String?) {
-        val bitmap = canvas.snapshot() ?: return
+    /** Runs [action] off the main thread; a non-null result is shown as a toast. */
+    private fun runExport(action: () -> String?) {
         Thread {
             val message = try {
-                action(bitmap)
+                action()
             } catch (t: Throwable) {
                 "Failed: " + (t.message ?: t.javaClass.simpleName)
             }

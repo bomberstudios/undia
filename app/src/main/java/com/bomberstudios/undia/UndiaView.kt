@@ -330,15 +330,15 @@ class UndiaView(context: Context) : SurfaceView(context) {
         }
     }
 
-    private fun renderTemp(c: Canvas, s: Stroke) {
+    private fun renderTemp(c: Canvas, s: Stroke, p: Paint = tempPaint) {
         val v = Color.red(TEMP_COLOR) + s.level * (255 - Color.red(TEMP_COLOR)) / (FADE_STEPS + 1)
-        tempPaint.color = Color.rgb(v, v, v)
+        p.color = Color.rgb(v, v, v)
         val path = Path().apply {
             moveTo(s.xy[0], s.xy[1])
             if (s.xy.size == 2) lineTo(s.xy[0] + 0.01f, s.xy[1])
             for (i in 2 until s.xy.size step 2) lineTo(s.xy[i], s.xy[i + 1])
         }
-        c.drawPath(path, tempPaint)
+        c.drawPath(path, p)
     }
 
     private fun bounds(s: Stroke): Rect {
@@ -661,33 +661,61 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val dateFormat = DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")
 
     /** The date, centered at the top of a past page, in the same font as the koans. */
-    private fun drawDate(c: Canvas) {
-        datePaint.textSize = c.width * 0.03825f // 15% smaller than 0.045
-        c.drawText(day.format(dateFormat), c.width / 2f, c.height * 0.06f + datePaint.textSize, datePaint)
+    private fun drawDate(c: Canvas, w: Int, h: Int, day: LocalDate, p: TextPaint) {
+        p.textSize = w * 0.03825f // 15% smaller than 0.045
+        c.drawText(day.format(dateFormat), w / 2f, h * 0.06f + p.textSize, p)
     }
 
-    private fun drawKoan(c: Canvas) {
-        val margin = c.width * 0.12f
-        koanPaint.textSize = c.width * 0.055f
+    private fun drawKoan(c: Canvas, w: Int, h: Int, day: LocalDate, p: TextPaint) {
+        val margin = w * 0.12f
+        p.textSize = w * 0.055f
         val koan = Koans.forDay(day)
         val layout = StaticLayout.Builder
-            .obtain(koan, 0, koan.length, koanPaint, (c.width - 2 * margin).toInt())
+            .obtain(koan, 0, koan.length, p, (w - 2 * margin).toInt())
             .setAlignment(Layout.Alignment.ALIGN_CENTER)
             .setLineSpacing(0f, 1.1f)
             .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED) // like CSS text-wrap: balance
             .build()
         c.save()
-        c.translate(margin, (c.height - layout.height) / 2f)
+        c.translate(margin, (h - layout.height) / 2f)
         layout.draw(c)
         c.restore()
     }
 
+    /**
+     * Draws a whole page onto [c], which is [w] x [h] units. Used for the bitmap on screen and,
+     * with a scaled canvas, for vector PDFs: strokes stay paths, text stays text.
+     */
+    private fun drawPage(
+        c: Canvas, w: Int, h: Int, day: LocalDate, editable: Boolean,
+        strokes: List<Stroke>, temps: List<Stroke>,
+        koan: TextPaint, date: TextPaint, temp: Paint
+    ) {
+        c.drawColor(Color.WHITE)
+        if (!editable) drawDate(c, w, h, day, date)
+        if (!editable && strokes.isEmpty()) drawKoan(c, w, h, day, koan) else strokes.forEach { render(c, it) }
+        temps.forEach { renderTemp(c, it, temp) }
+    }
+
     private fun redrawAll() {
         bitmapCanvas?.let { c ->
-            c.drawColor(Color.WHITE)
-            if (!editable) drawDate(c)
-            if (!editable && strokes.isEmpty()) drawKoan(c) else strokes.forEach { render(c, it) }
-            tempStrokes.forEach { renderTemp(c, it) }
+            drawPage(c, c.width, c.height, day, editable, strokes, tempStrokes, koanPaint, datePaint, tempPaint)
+        }
+    }
+
+    /** A page that can be drawn later, on any thread and any canvas, as it is right now. */
+    class PageSnapshot(val width: Int, val height: Int, val draw: (Canvas) -> Unit)
+
+    fun pageSnapshot(): PageSnapshot? {
+        val w = width
+        val h = height
+        if (w <= 0 || h <= 0) return null
+        val d = day
+        val isEditable = editable
+        val (s, t) = synchronized(this) { ArrayList(strokes) to ArrayList(tempStrokes) }
+        // The paints are copied: drawing may happen on another thread while the screen redraws
+        return PageSnapshot(w, h) { c ->
+            drawPage(c, w, h, d, isEditable, s, t, TextPaint(koanPaint), TextPaint(datePaint), Paint(tempPaint))
         }
     }
 
