@@ -165,21 +165,18 @@ class MainActivity : Activity() {
             addView(text("undia", 28f, Gravity.CENTER, 8))
             addView(text("The notebook that does LESS", 17f, Gravity.CENTER, 0, face = zodiakItalic))
             addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 14f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)))
+            addView(text("undia is a half notebook, half philosophy manifesto:", 17f, Gravity.CENTER, 18))
             addView(text(
-                "One page per day. All yours to scribble, sketch, draw or write. You can’t erase, undo, or clear, because regret is not worth it. You’ll get a new page at midnight anyway, so don’t worry too much.",
-                17f, Gravity.START, 18
-            ))
-            addView(text(
-                "No streaks, no backlog, no eraser, no regrets (okay, maybe a few regrets), just today.",
-                17f, Gravity.START, 10
+                "You get one page per day. You can draw, but you can’t erase or undo. Regret is not your friend (and it’s overrated anyway).",
+                17f, Gravity.CENTER, 10
             ))
             addView(text(
                 "You can revisit old pages, but you can’t rewrite the past (well, you can try, but it won’t work). Skipped a day? You’ll get a random koan so you can still have something to meditate about.",
-                17f, Gravity.START, 10
+                17f, Gravity.CENTER, 10
             ))
             addView(text(
-                "You get one pen and one highlighter. Toggle between them using the mark at the top right (or a three finger tap). Swipe to flip pages, double tap to come back to today, and hold for a menu.",
-                17f, Gravity.START, 10
+                "undia does less by giving you one pen and one highlighter. Toggle between them using the mark at the top right (or a three finger tap). Swipe to flip pages, double tap to come back to today, and hold for a menu.",
+                17f, Gravity.CENTER, 10
             ))
             addView(text("Made with love by Ale Muñoz", 13f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
         }
