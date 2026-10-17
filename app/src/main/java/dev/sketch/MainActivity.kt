@@ -116,12 +116,7 @@ class MainActivity : Activity() {
             addView(menuLayer, FrameLayout.LayoutParams(-1, -1))
         })
 
-        // Notes from before there was one page per day become today's page
         val pages = File(filesDir, "pages").apply { mkdirs() }
-        val legacy = File(filesDir, "page.bin")
-        val todayFile = File(pages, "$today.bin")
-        if (legacy.exists() && !todayFile.exists()) legacy.renameTo(todayFile)
-
         canvas.pagesDir = pages
         canvas.showDay(today, today, refresh = false)
     }

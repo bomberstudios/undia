@@ -1,11 +1,8 @@
 package dev.sketch
 
 import android.content.Context
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.File
+import java.util.Locale
 import java.time.LocalDate
 import java.util.concurrent.Executors
 import android.graphics.Bitmap
@@ -19,6 +16,8 @@ import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Handler
+import android.util.Xml
+import org.xmlpull.v1.XmlPullParser
 import android.os.Looper
 import android.text.Layout
 import android.text.StaticLayout
@@ -50,11 +49,11 @@ class SketchView(context: Context) : SurfaceView(context) {
         const val PEN_WIDTH_PX = PEN_WIDTH_MM / 25.4f * PANEL_PPI // ~2.36 px
         const val HIGHLIGHT_WIDTH_MM = 4f
         const val HIGHLIGHT_WIDTH_PX = HIGHLIGHT_WIDTH_MM / 25.4f * PANEL_PPI // ~47 px
-        val HIGHLIGHT_COLOR = Color.rgb(0xff, 0xcc, 0x00) // #ffcc00
+        const val HIGHLIGHT_HEX = "#ffcc00"
+        val HIGHLIGHT_COLOR = Color.parseColor(HIGHLIGHT_HEX)
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
-        const val FILE_VERSION = 1
         const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
@@ -66,7 +65,7 @@ class SketchView(context: Context) : SurfaceView(context) {
     // Guarded by synchronized(this), like the bitmap
     private val strokes = ArrayList<Stroke>()
 
-    /** Where the daily pages (yyyy-MM-dd.bin) live. Set before [showDay]. */
+    /** Where the daily pages (yyyy-MM-dd.svg) live. Set before [showDay]. */
     var pagesDir: File? = null
 
     /** The day being shown, and the current calendar day; only today's page is editable. */
@@ -378,7 +377,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         }
     }
 
-    private fun pageFile(d: LocalDate) = File(pagesDir ?: error("pagesDir not set"), "$d.bin")
+    private fun pageFile(d: LocalDate) = File(pagesDir ?: error("pagesDir not set"), "$d.svg")
 
     /** Writes today's page if it changed. Via a temp file, so a crash never leaves half a drawing. */
     fun save() {
@@ -394,15 +393,7 @@ class SketchView(context: Context) : SurfaceView(context) {
             try {
                 file.parentFile?.mkdirs()
                 val tmp = File(file.parentFile, file.name + ".tmp")
-                DataOutputStream(BufferedOutputStream(tmp.outputStream())).use { out ->
-                    out.writeInt(FILE_VERSION)
-                    out.writeInt(copy.size)
-                    for (s in copy) {
-                        out.writeBoolean(s.highlight)
-                        out.writeInt(s.xy.size)
-                        for (v in s.xy) out.writeFloat(v)
-                    }
-                }
+                tmp.writeText(toSvg(copy, width, height), Charsets.UTF_8)
                 if (!tmp.renameTo(file)) error("Could not replace ${file.name}")
             } catch (t: Exception) {
                 synchronized(this) { dirty = true }
@@ -411,20 +402,52 @@ class SketchView(context: Context) : SurfaceView(context) {
         }
     }
 
+    private fun fmt(v: Float) = String.format(Locale.US, "%.1f", v)
+
+    /** A page as a plain SVG: one polyline per stroke, in panel pixels. */
+    private fun toSvg(list: List<Stroke>, w: Int, h: Int): String {
+        val sb = StringBuilder()
+        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        sb.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$w\" height=\"$h\" viewBox=\"0 0 $w $h\">\n")
+        sb.append("<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>\n")
+        sb.append("<g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
+        for (s in list) {
+            if (s.highlight) {
+                sb.append("<polyline stroke=\"$HIGHLIGHT_HEX\" stroke-width=\"${fmt(HIGHLIGHT_WIDTH_PX)}\" style=\"mix-blend-mode:darken\" points=\"")
+            } else {
+                sb.append("<polyline stroke=\"#000000\" stroke-width=\"${fmt(PEN_WIDTH_PX)}\" points=\"")
+            }
+            for (i in s.xy.indices step 2) {
+                if (i > 0) sb.append(' ')
+                sb.append(fmt(s.xy[i])).append(',').append(fmt(s.xy[i + 1]))
+            }
+            // A single point needs a second one, or SVG draws no dot
+            if (s.xy.size == 2) sb.append(' ').append(fmt(s.xy[0])).append(',').append(fmt(s.xy[1]))
+            sb.append("\"/>\n")
+        }
+        sb.append("</g>\n</svg>\n")
+        return sb.toString()
+    }
+
     /** Reads a saved page. A missing or unreadable file is an empty page. */
     private fun readStrokes(file: File): List<Stroke> {
         if (!file.exists()) return emptyList()
         return try {
-            DataInputStream(BufferedInputStream(file.inputStream())).use { input ->
-                if (input.readInt() != FILE_VERSION) return emptyList()
-                val loaded = ArrayList<Stroke>()
-                repeat(input.readInt()) {
-                    val highlight = input.readBoolean()
-                    val xy = FloatArray(input.readInt()) { input.readFloat() }
-                    if (xy.size >= 2 && xy.size % 2 == 0) loaded.add(Stroke(highlight, xy))
+            val loaded = ArrayList<Stroke>()
+            file.reader(Charsets.UTF_8).use { reader ->
+                val parser = Xml.newPullParser()
+                parser.setInput(reader)
+                while (parser.next() != XmlPullParser.END_DOCUMENT) {
+                    if (parser.eventType != XmlPullParser.START_TAG || parser.name != "polyline") continue
+                    val highlight = parser.getAttributeValue(null, "stroke")
+                        ?.equals(HIGHLIGHT_HEX, ignoreCase = true) == true
+                    val nums = parser.getAttributeValue(null, "points")
+                        ?.split(' ', ',', '\n', '\t')?.filter { it.isNotEmpty() }?.map { it.toFloat() }
+                        ?: continue
+                    if (nums.size >= 2 && nums.size % 2 == 0) loaded.add(Stroke(highlight, nums.toFloatArray()))
                 }
-                loaded
             }
+            loaded
         } catch (t: Exception) {
             emptyList()
         }

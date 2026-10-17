@@ -58,7 +58,7 @@ The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo
 
 ## Where things are
 
-Pages are stored as one small file per day (`yyyy-MM-dd.bin`) in the app's private storage. Code is in `app/src/main/java/dev/sketch`:
+Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline per stroke) in the app's private storage, so they open in any browser or vector editor. Code is in `app/src/main/java/dev/sketch`:
 
 - `SketchView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover
