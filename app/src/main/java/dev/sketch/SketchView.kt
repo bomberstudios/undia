@@ -16,6 +16,7 @@ import android.graphics.Rect
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
+import android.graphics.text.LineBreaker
 import android.os.Handler
 import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
@@ -649,6 +650,7 @@ class SketchView(context: Context) : SurfaceView(context) {
         color = Color.BLACK
         typeface = resources.getFont(R.font.zodiak_italic)
         fontFeatureSettings = "onum" // old-style figures, when the font has them
+        letterSpacing = -0.02f // em; a little tighter than the font default
     }
 
     private val datePaint = TextPaint(koanPaint).apply {
@@ -670,7 +672,8 @@ class SketchView(context: Context) : SurfaceView(context) {
         val layout = StaticLayout.Builder
             .obtain(koan, 0, koan.length, koanPaint, (c.width - 2 * margin).toInt())
             .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setLineSpacing(0f, 1.3f)
+            .setLineSpacing(0f, 1.1f)
+            .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED) // like CSS text-wrap: balance
             .build()
         c.save()
         c.translate(margin, (c.height - layout.height) / 2f)
