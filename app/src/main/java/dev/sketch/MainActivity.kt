@@ -205,7 +205,7 @@ class MainActivity : Activity() {
         try {
             canvas.save()
         } catch (t: Exception) {
-            Toast.makeText(this, "Could not save the sketch", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Could not save the page", Toast.LENGTH_SHORT).show()
         }
         canvas.pauseInput()
         super.onPause()

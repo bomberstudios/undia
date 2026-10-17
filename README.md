@@ -1,4 +1,4 @@
-# Sketch
+# Undia
 
 A one-page-a-day sketchbook for the Boox Go6 Gen2 (Android 14).
 

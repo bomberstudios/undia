@@ -26,10 +26,10 @@ object Exporter {
 
     fun copyToClipboard(context: Context, bitmap: Bitmap) {
         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
-        val file = File(dir, "sketch.png")
+        val file = File(dir, "undia.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-        val clip = ClipData.newUri(context.contentResolver, "Sketch", uri)
+        val clip = ClipData.newUri(context.contentResolver, "Undia", uri)
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
     }
 
@@ -53,7 +53,7 @@ object Exporter {
 
     /** Saves to Downloads; returns the file name. */
     fun saveAsPdf(context: Context, bitmap: Bitmap): String {
-        val name = "sketch-${timestamp()}.pdf"
+        val name = "undia-${timestamp()}.pdf"
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
@@ -66,11 +66,11 @@ object Exporter {
         return name
     }
 
-    /** Opens Android's share sheet with the sketch as a PDF (LocalSend, Drive, etc.). */
+    /** Opens Android's share sheet with the page as a PDF (LocalSend, Drive, etc.). */
     fun share(activity: Activity, bitmap: Bitmap): String? {
         val dir = File(activity.cacheDir, "shared").apply { mkdirs() }
-        dir.listFiles { f -> f.name.startsWith("sketch-") && f.name.endsWith(".pdf") }?.forEach { it.delete() }
-        val file = File(dir, "sketch-${timestamp()}.pdf")
+        dir.listFiles { f -> f.name.startsWith("undia-") && f.name.endsWith(".pdf") }?.forEach { it.delete() }
+        val file = File(dir, "undia-${timestamp()}.pdf")
         file.outputStream().use { writePdf(bitmap, it) }
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.files", file)
 
@@ -80,7 +80,7 @@ object Exporter {
             clipData = ClipData.newRawUri(file.name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        activity.runOnUiThread { activity.startActivity(Intent.createChooser(send, "Share sketch")) }
+        activity.runOnUiThread { activity.startActivity(Intent.createChooser(send, "Share page")) }
         return null
     }
 
@@ -88,6 +88,6 @@ object Exporter {
         PrintHelper(activity).apply {
             scaleMode = PrintHelper.SCALE_MODE_FIT
             colorMode = PrintHelper.COLOR_MODE_MONOCHROME
-        }.printBitmap("Sketch", bitmap)
+        }.printBitmap("Undia", bitmap)
     }
 }

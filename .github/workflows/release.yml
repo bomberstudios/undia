@@ -42,16 +42,16 @@ jobs:
           "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Name the APK
-        run: cp app/build/outputs/apk/release/app-release.apk "sketch-${GITHUB_REF_NAME//\//-}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "undia-${GITHUB_REF_NAME//\//-}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sketch-release-apk
-          path: sketch-*.apk
+          name: undia-release-apk
+          path: undia-*.apk
           if-no-files-found: error
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" sketch-*.apk --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" undia-*.apk --title "$GITHUB_REF_NAME" --generate-notes
