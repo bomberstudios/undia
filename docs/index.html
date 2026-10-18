@@ -50,25 +50,28 @@
       font-display: swap;
     }
 
-    :root {
-      --paper: #ffffff;
-      --ink: #111111;
-      --muted: #5c5c5c;
-      --rule: #111111;
-      --orange: #ff6600;
-      --yellow: #ffcc00;
-      --soft: #f6f3ec;
-      --maxw: 1080px;
+    /* Without this, italic text at weight 700 (the headings' <em>) is the regular italic with a
+       synthetic bold smeared on top, which is not the real Bold Italic. */
+    @font-face {
+      font-family: "Zodiak";
+      src: url("assets/Zodiak-BoldItalic.otf") format("opentype");
+      font-weight: 700;
+      font-style: italic;
+      font-display: swap;
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        --paper: #121212;
-        --ink: #f4f1ea;
-        --muted: #a8a49b;
-        --rule: #f4f1ea;
-        --soft: #1b1b1b;
-      }
+    :root {
+      color-scheme: light;
+      /* the site is light only, whatever the system theme */
+      --paper: #f9f8f6;
+      /* cream */
+      --ink: #111111;
+      --muted: #5c5c5c;
+      --rule: #5c5c5c;
+      --orange: #ff6600;
+      --yellow: #ffcc00;
+      --soft: #ebe7de;
+      --maxw: 1080px;
     }
 
     * {
@@ -115,9 +118,13 @@
       background: linear-gradient(transparent 12%, var(--yellow) 12%, var(--yellow) 92%, transparent 92%);
       color: #111;
       padding: 0 0.18em;
-      margin: 0 -0.18em;
       -webkit-box-decoration-break: clone;
       box-decoration-break: clone;
+    }
+
+    /* in the big heading the highlight stays tucked in against the full stop, and the line stays whole */
+    h1 mark {
+      margin: 0 -0.18em 0 0;
     }
 
     header.top {
@@ -187,6 +194,10 @@
     }
 
     /* hero */
+    .hero-text {
+      container-type: inline-size;
+    }
+
     .hero {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
@@ -203,10 +214,14 @@
     }
 
     h1 {
-      font-weight: 300;
-      font-size: clamp(2.8rem, 7.5vw, 5.6rem);
+      font-weight: 700;
+      /* two lines, always: the size follows the width of the column (cqw) so that
+         "The notebook" and "that does less." fit it exactly */
+      font-size: clamp(2rem, 14.6cqw, 5.6rem);
+      white-space: nowrap;
       line-height: 1.02;
-      letter-spacing: -0.025em;
+      letter-spacing: -0.045em;
+      /* headlines: 2% tighter */
       margin: 0 0 24px;
       text-wrap-style: balance;
     }
@@ -269,12 +284,51 @@
       margin: 0;
     }
 
+    /*
+      Risograph shadows. Two spot-colour inks are printed behind the object, a little off-register
+      and overprinting (multiply) like real riso layers: a flat yellow, and orange halftone dots.
+      A grain mask makes the ink break up the way riso ink does on paper.
+    */
+    :root {
+      --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 -3.3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .riso {
+      position: relative;
+      isolation: isolate;
+    }
+
+    .riso::before,
+    .riso::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      z-index: -1;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      /* overprints like riso ink */
+      -webkit-mask-image: var(--grain);
+      mask-image: var(--grain);
+      -webkit-mask-size: 240px 240px;
+      mask-size: 240px 240px;
+    }
+
+    .riso::before {
+      background: var(--yellow);
+      transform: translate(var(--riso-x1, 9px), var(--riso-y1, 10px));
+    }
+
+    .riso::after {
+      background: radial-gradient(circle at center, var(--orange) 0 38%, transparent 42%) 0 0 / 8px 8px;
+      transform: translate(var(--riso-x2, 17px), var(--riso-y2, 15px));
+    }
+
     .frame {
       border: 2px solid var(--rule);
       border-radius: 22px;
-      padding: 10px;
+      padding: 8px;
       background: #fff;
-      box-shadow: 8px 8px 0 var(--rule);
     }
 
     .frame img {
@@ -302,10 +356,11 @@
     }
 
     h2 {
-      font-weight: 300;
+      font-weight: 700;
       font-size: clamp(2rem, 5vw, 3.4rem);
       line-height: 1.08;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.04em;
+      /* headlines: 2% tighter */
       margin: 0 0 28px;
       max-width: 18ch;
       text-wrap-style: balance;
@@ -381,7 +436,8 @@
       font-weight: 700;
       font-size: 1.5rem;
       margin: 0 0 10px;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.03em;
+      /* headlines: 2% tighter */
       text-wrap-style: balance;
     }
 
@@ -526,12 +582,23 @@
       justify-content: center;
     }
 
-    .final img.icon {
+    .final .icon-print {
+      display: block;
       width: 96px;
       height: 96px;
       border-radius: 22px;
-      margin-bottom: 28px;
-      box-shadow: 5px 5px 0 var(--rule);
+      margin: 0 auto 28px;
+      --riso-x1: 5px;
+      --riso-y1: 6px;
+      --riso-x2: 10px;
+      --riso-y2: 9px;
+    }
+
+    .final img.icon {
+      display: block;
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
     }
 
     footer {
@@ -620,9 +687,9 @@
 
     <main>
       <div class="hero">
-        <div>
+        <div class="hero-text">
           <p class="eyebrow">for e-ink tablets, in black &amp; white</p>
-          <h1>The notebook that does <mark>less</mark>.</h1>
+          <h1>The notebook<br>that does <mark>less</mark>.</h1>
           <p class="lede">One page per day. One pen. What you draw stays there: no eraser, no undo, no clear.</p>
           <div class="cta">
             <a class="btn" href="https://github.com/bomberstudios/undia/releases/latest">Download the APK</a>
@@ -631,7 +698,7 @@
           <p class="fine">Built for the Boox Go 6 Gen 2 (Android 14). Stylus required.</p>
         </div>
         <figure class="screen">
-          <div class="frame"><img src="screenshots/today.png" width="1072" height="1448"
+          <div class="frame riso"><img src="screenshots/today.png" width="1072" height="1448"
               alt="Today's page in undia, covered in handwritten notes, sketches and yellow highlighter marks"></div>
           <figcaption>Today. Notes, a doodle, a highlighter, all permanent.</figcaption>
         </figure>
@@ -699,13 +766,13 @@
 
       <div class="shots">
         <figure class="screen">
-          <div class="frame"><img src="screenshots/menu.png" width="1072" height="1448" loading="lazy"
+          <div class="frame riso"><img src="screenshots/menu.png" width="1072" height="1448" loading="lazy"
               alt="The menu over a page: a calendar of the month, then copy to clipboard, save as PDF, share and about">
           </div>
           <figcaption>Hold a finger down for the menu: a calendar, and ways to get a page out.</figcaption>
         </figure>
         <figure class="screen">
-          <div class="frame"><img src="screenshots/past.png" width="1072" height="1448" loading="lazy"
+          <div class="frame riso"><img src="screenshots/past.png" width="1072" height="1448" loading="lazy"
               alt="A past day with nothing drawn, showing its date in orange and a koan: A man asked the sea for directions. The sea said: yes.">
           </div>
           <figcaption>A past day with nothing on it. Date at the top, koan in the middle.</figcaption>
@@ -789,8 +856,8 @@
 
   <section class="final">
     <div class="wrap">
-      <img class="icon" src="assets/icon.svg" alt="undia icon: a white numeral one on an orange square" width="96"
-        height="96">
+      <span class="icon-print riso"><img class="icon" src="assets/icon.svg"
+          alt="undia icon: a white numeral one on an orange square" width="96" height="96"></span>
       <h2>Start with <em>today</em>.</h2>
       <div class="cta">
         <a class="btn" href="https://github.com/bomberstudios/undia/releases/latest">Download the APK</a>
