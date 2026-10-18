@@ -40,7 +40,7 @@ The menu has a **calendar** to jump to any day up to today (past days open read-
 - About (how the app works, its version and build date)
 - Back to today (when you are on a past day)
 
-Past pages show their date, centered at the top in the same font as the koans (Zodiak Italic). Today's page shows no date.
+A past day with nothing on it shows its date, centered at the top in the same font as the koans (Zodiak Italic), above the koan. A past day with notes shows no date, because it would be drawn over them, and neither does today's page.
 
 ## Debug builds
 

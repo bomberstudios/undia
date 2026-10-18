@@ -956,8 +956,15 @@ class UndiaView(context: Context) : SurfaceView(context) {
         koan: TextPaint, date: TextPaint, temp: Paint
     ) {
         c.drawColor(Color.WHITE)
-        if (!editable) drawDate(c, w, h, day, date)
-        if (!editable && strokes.isEmpty()) drawKoan(c, w, h, day, koan) else strokes.forEach { render(c, it) }
+        val emptyPastDay = !editable && strokes.isEmpty()
+        // The date goes only on a day with nothing drawn, where it sits with the koan; on a day
+        // with notes it would be drawn over them
+        if (emptyPastDay) {
+            drawDate(c, w, h, day, date)
+            drawKoan(c, w, h, day, koan)
+        } else {
+            strokes.forEach { render(c, it) }
+        }
         temps.forEach { renderTemp(c, it, temp) }
     }
 
