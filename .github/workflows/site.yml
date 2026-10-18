@@ -27,4 +27,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The action installs Wrangler 3.90 by default, which wants a script entry point;
+          # a static-assets-only Worker (no "main") needs Wrangler 4
+          wranglerVersion: "4"
           command: deploy
