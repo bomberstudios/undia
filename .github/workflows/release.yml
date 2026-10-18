@@ -10,6 +10,8 @@ on:
       - '**.md'
       - 'docs/**'
       - 'LICENSE'
+      - 'wrangler.jsonc'
+      - '.github/workflows/site.yml'
   workflow_dispatch:
 
 concurrency:

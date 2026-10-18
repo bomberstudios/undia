@@ -1,0 +1,16 @@
+{
+  // The landing page: a static site served from docs/ by a Workers static-assets-only Worker.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "undia-site",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./docs",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "undia.naranjanaranja.org", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": false
+}

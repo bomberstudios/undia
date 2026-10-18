@@ -1,0 +1,30 @@
+name: Site
+
+# Deploys the landing page (docs/) to Cloudflare Workers at undia.naranjanaranja.org.
+# Pushes to main that touch the page or its config deploy it; run it by hand to redeploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - wrangler.jsonc
+      - .github/workflows/site.yml
+  workflow_dispatch:
+
+concurrency:
+  group: site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Needs the repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit, plus
+      # Zone: Read and Workers Routes: Edit on naranjanaranja.org) and CLOUDFLARE_ACCOUNT_ID
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
