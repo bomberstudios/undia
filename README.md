@@ -27,7 +27,7 @@ Taken on a Go 6 Gen 2. The panel is black and white, so the orange date and the 
 | Draw with the pen | 0.2 mm black line |
 | Tap with one finger (or three) | Switch between pen and highlighter. The mark at the top right shows which one is on: a small black dot for the pen, a larger colored circle for the highlighter. It's only an indicator, so you can draw right under it |
 | Swipe left or right with one finger | Next or previous day (never past today) |
-| Double-tap with one finger | Go back to today |
+| Double-tap with one finger (on a past day) | Go back to today. On today's page every tap switches the tool, so a double tap switches it twice |
 | Hold one finger on the screen | Open the menu |
 
 The highlighter is a 4 mm #ffcc00 stroke (a light gray on the black-and-white panel) that keeps your ink readable underneath. It goes back to the pen by itself 0.8 s after a highlight stroke, so you can highlight several things in quick succession.

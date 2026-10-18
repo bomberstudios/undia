@@ -17,6 +17,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.text.LineBreaker
+import android.os.Build
 import android.os.Handler
 import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
@@ -62,8 +63,9 @@ class UndiaView(context: Context) : SurfaceView(context) {
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
+        const val PEN_GUARD_MS = 800L // finger gestures are ignored this long after the pen was last near
+        const val PALM_MM = 15f // a touch wider than this is a palm, not a fingertip
         const val TAP_MAX_SINGLE_MS = 250L // longest touch that still counts as a tap
-        const val TAP_CONFIRM_MS = 180L // wait before a tap on today's page toggles the tool
         const val SWIPE_MAX_MS = 800L
         const val SWIPE_MIN_FRACTION = 0.25f // of the page width
         const val ERASER_RADIUS_PX = 24f // debug builds only
@@ -160,6 +162,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
 
     private val callback = object : RawInputCallback() {
         override fun onBeginRawDrawing(b: Boolean, p: TouchPoint?) {
+            notePen()
             // Don't repaint under the pen while the user is still writing
             main.removeCallbacks(smoothRunnable)
             main.removeCallbacks(revertRunnable) // a quick next highlight keeps the highlighter
@@ -169,7 +172,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
             penDown = false
             if (!editable) main.post { scheduleFade() }
         }
-        override fun onRawDrawingTouchPointMoveReceived(p: TouchPoint?) {}
+        override fun onRawDrawingTouchPointMoveReceived(p: TouchPoint?) { notePen() }
         override fun onRawDrawingTouchPointListReceived(list: TouchPointList?) {
             commitStroke(list, highlighting)
         }
@@ -225,34 +228,29 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val startX = FloatArray(3)
     private val startY = FloatArray(3)
 
-    /** A one-finger tap switches pen/highlighter (on today's page). */
-    var tapTogglesMode = true
-
     private var lastTapAt = 0L
     private var lastTapX = 0f
     private var lastTapY = 0f
-    private val toggleRunnable = Runnable { if (tapTogglesMode && editable) toggleMode() }
 
     /**
-     * A tap can't be told from the first half of a double tap until the double-tap window has passed,
-     * so on today's page the toggle waits [TAP_CONFIRM_MS], shorter than Android's usual ~300 ms. A
-     * double tap there cancels it and does nothing. On a past page a single tap does nothing, so the
-     * full window is free: two taps go back to today.
+     * On today's page every tap switches pen/highlighter at once, so two quick taps switch it twice.
+     * On a past page a single tap does nothing and two quick taps in the same place go back to today.
      */
     private fun tap(e: MotionEvent) {
-        val window = if (editable) TAP_CONFIRM_MS else ViewConfiguration.getDoubleTapTimeout().toLong()
+        if (editable) {
+            toggleMode()
+            return
+        }
         val doubleSlop = ViewConfiguration.get(context).scaledDoubleTapSlop
-        val isSecond = lastTapAt != 0L && e.eventTime - lastTapAt < window &&
+        val isSecond = lastTapAt != 0L && e.eventTime - lastTapAt < ViewConfiguration.getDoubleTapTimeout() &&
             Math.hypot((e.x - lastTapX).toDouble(), (e.y - lastTapY).toDouble()) <= doubleSlop
         if (isSecond) {
             lastTapAt = 0L
-            main.removeCallbacks(toggleRunnable)
-            if (day != today) showDay(today, today)
+            showDay(today, today)
         } else {
             lastTapAt = e.eventTime
             lastTapX = e.x
             lastTapY = e.y
-            if (editable) main.postDelayed(toggleRunnable, TAP_CONFIRM_MS)
         }
     }
 
@@ -263,14 +261,64 @@ class UndiaView(context: Context) : SurfaceView(context) {
         showDay(target, today)
     }
 
+    @Volatile
+    private var lastPenAt = 0L
+
+    private fun notePen() {
+        lastPenAt = SystemClock.elapsedRealtime()
+    }
+
+    /** The pen is touching, hovering just above the screen, or was a moment ago. */
+    private fun penActive() = SystemClock.elapsedRealtime() - lastPenAt < PEN_GUARD_MS
+
+    /** Flagged as a palm by Android, cancelled by it, or much bigger than a fingertip. */
+    private fun looksLikePalm(e: MotionEvent): Boolean {
+        if (e.flags and MotionEvent.FLAG_CANCELED != 0) return true
+        // Android's own palm classification (tool type 5, not a public constant in this SDK)
+        if (Build.VERSION.SDK_INT >= 31 && e.getToolType(0) == 5) return true
+        val palmPx = PALM_MM / 25.4f * ppi
+        for (i in 0 until e.pointerCount) if (e.getTouchMajor(i) > palmPx) return true
+        return false
+    }
+
+    /** Hover events tell us the pen is near, before it touches: that is when the hand lands. */
+    override fun onGenericMotionEvent(e: MotionEvent): Boolean {
+        val tool = e.getToolType(0)
+        if (tool == MotionEvent.TOOL_TYPE_STYLUS || tool == MotionEvent.TOOL_TYPE_ERASER) {
+            notePen()
+            cancelGestures()
+        }
+        return super.onGenericMotionEvent(e)
+    }
+
+    /** Forgets a half-finished finger gesture, e.g. when the pen takes over. */
+    private fun cancelGestures() {
+        main.removeCallbacks(longPressRunnable)
+        tapArmed = false
+        lastTapAt = 0L
+    }
+
     /** A finger held still on the canvas; arguments are the view coordinates. */
     var onLongPress: ((x: Float, y: Float) -> Unit)? = null
     private var pressX = 0f
     private var pressY = 0f
-    private val longPressRunnable = Runnable { onLongPress?.invoke(pressX, pressY) }
+    private val longPressRunnable = Runnable { if (!penActive()) onLongPress?.invoke(pressX, pressY) }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        if (e.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) return super.onTouchEvent(e)
+        // Only fingers make gestures. With the pen's side button held, a touch can be reported as an
+        // eraser or with button bits set rather than as a plain stylus, so test for "not a finger".
+        val penButtons = MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_STYLUS_SECONDARY
+        if (e.getToolType(0) != MotionEvent.TOOL_TYPE_FINGER || e.buttonState and penButtons != 0) {
+            notePen()
+            cancelGestures()
+            return super.onTouchEvent(e)
+        }
+        // Palm rejection: a hand resting on the screen to write is not a gesture. Ignore touches
+        // while the pen is near or has just been used, and touches that look like a palm.
+        if (penActive() || looksLikePalm(e)) {
+            cancelGestures()
+            return true
+        }
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 tapArmed = true
