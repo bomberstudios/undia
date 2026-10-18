@@ -2,7 +2,6 @@ package com.bomberstudios.undia
 
 import android.content.Context
 import java.io.File
-import java.util.Locale
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
@@ -19,8 +18,6 @@ import android.graphics.RectF
 import android.graphics.text.LineBreaker
 import android.os.Build
 import android.os.Handler
-import android.util.Xml
-import org.xmlpull.v1.XmlPullParser
 import android.os.Looper
 import android.os.SystemClock
 import android.text.Layout
@@ -58,7 +55,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // Temporary ink gets lighter every FADE_STEP_MS and is gone after FADE_STEPS more steps
         const val FADE_STEP_MS = 1_000L
         const val FADE_STEPS = 5
-        const val HIGHLIGHT_HEX = "#ffcc00"
+        const val HIGHLIGHT_HEX = PageFile.HIGHLIGHT_HEX
         val HIGHLIGHT_COLOR = Color.parseColor(HIGHLIGHT_HEX)
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
@@ -92,7 +89,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val penWidthPx = PEN_WIDTH_MM / 25.4f * ppi // about 2.4 px at 300 ppi
     private val highlightWidthPx = HIGHLIGHT_WIDTH_MM / 25.4f * ppi // about 47 px at 300 ppi
 
-    private class Stroke(val highlight: Boolean, val xy: FloatArray) {
+    private class Stroke(highlight: Boolean, xy: FloatArray) : InkStroke(highlight, xy) {
         // Only used by temporary strokes: when it was drawn and how faded it is (0 = fresh)
         val born: Long = SystemClock.elapsedRealtime()
         var level = 0
@@ -773,7 +770,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
             try {
                 file.parentFile?.mkdirs()
                 val tmp = File(file.parentFile, file.name + ".tmp")
-                tmp.writeText(toSvg(copy, width, height), Charsets.UTF_8)
+                tmp.writeText(PageFile.toSvg(copy, width, height, penWidthPx, highlightWidthPx), Charsets.UTF_8)
                 if (!tmp.renameTo(file)) error("Could not replace ${file.name}")
             } catch (t: Exception) {
                 synchronized(this) { dirty = true }
@@ -782,52 +779,11 @@ class UndiaView(context: Context) : SurfaceView(context) {
         }
     }
 
-    private fun fmt(v: Float) = String.format(Locale.US, "%.1f", v)
-
-    /** A page as a plain SVG: one polyline per stroke, in panel pixels. */
-    private fun toSvg(list: List<Stroke>, w: Int, h: Int): String {
-        val sb = StringBuilder()
-        sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        sb.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"$w\" height=\"$h\" viewBox=\"0 0 $w $h\">\n")
-        sb.append("<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>\n")
-        sb.append("<g fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n")
-        for (s in list) {
-            if (s.highlight) {
-                sb.append("<polyline stroke=\"$HIGHLIGHT_HEX\" stroke-width=\"${fmt(highlightWidthPx)}\" style=\"mix-blend-mode:darken\" points=\"")
-            } else {
-                sb.append("<polyline stroke=\"#000000\" stroke-width=\"${fmt(penWidthPx)}\" points=\"")
-            }
-            for (i in s.xy.indices step 2) {
-                if (i > 0) sb.append(' ')
-                sb.append(fmt(s.xy[i])).append(',').append(fmt(s.xy[i + 1]))
-            }
-            // A single point needs a second one, or SVG draws no dot
-            if (s.xy.size == 2) sb.append(' ').append(fmt(s.xy[0])).append(',').append(fmt(s.xy[1]))
-            sb.append("\"/>\n")
-        }
-        sb.append("</g>\n</svg>\n")
-        return sb.toString()
-    }
-
     /** Reads a saved page. A missing or unreadable file is an empty page. */
     private fun readStrokes(file: File): List<Stroke> {
         if (!file.exists()) return emptyList()
         return try {
-            val loaded = ArrayList<Stroke>()
-            file.reader(Charsets.UTF_8).use { reader ->
-                val parser = Xml.newPullParser()
-                parser.setInput(reader)
-                while (parser.next() != XmlPullParser.END_DOCUMENT) {
-                    if (parser.eventType != XmlPullParser.START_TAG || parser.name != "polyline") continue
-                    val highlight = parser.getAttributeValue(null, "stroke")
-                        ?.equals(HIGHLIGHT_HEX, ignoreCase = true) == true
-                    val nums = parser.getAttributeValue(null, "points")
-                        ?.split(' ', ',', '\n', '\t')?.filter { it.isNotEmpty() }?.map { it.toFloat() }
-                        ?: continue
-                    if (nums.size >= 2 && nums.size % 2 == 0) loaded.add(Stroke(highlight, nums.toFloatArray()))
-                }
-            }
-            loaded
+            PageFile.parse(file.readText(Charsets.UTF_8)).map { Stroke(it.highlight, it.xy) }
         } catch (t: Exception) {
             emptyList()
         }

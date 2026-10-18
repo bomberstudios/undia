@@ -18,7 +18,7 @@ import java.util.Locale
 object Koans {
     private const val OFFSET = 89L
 
-    private val all = """
+    internal val all = """
 The master’s only teaching was: wear the good socks. Nobody understood until winter.
 What do you carry that is lighter than a feather and heavier than a mountain?
 To be carried by a river you must first stop swimming.

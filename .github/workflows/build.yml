@@ -20,6 +20,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       # The Android SDK is preinstalled on GitHub's Ubuntu runners
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
