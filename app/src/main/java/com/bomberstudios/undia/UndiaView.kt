@@ -116,6 +116,11 @@ class UndiaView(context: Context) : SurfaceView(context) {
     var onDayChanged: ((day: LocalDate, editable: Boolean) -> Unit)? = null
 
     private var dirty = false
+
+    // A page is being read from disk: its strokes are not here yet, so nothing is drawn or saved
+    @Volatile private var loading = false
+    private var loadId = 0
+    private val loadExecutor = Executors.newSingleThreadExecutor()
     private val saveLock = Any()
     private val saveExecutor = Executors.newSingleThreadExecutor()
     private val saveRunnable = Runnable { saveExecutor.execute { try { save() } catch (t: Exception) {} } }
@@ -574,7 +579,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
 
     private fun commitStroke(list: TouchPointList?, highlight: Boolean) {
         val pts = list?.points ?: return
-        if (pts.isEmpty()) return
+        if (pts.isEmpty() || loading) return
         val xy = FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y }
         val temporary = !editable
         val stroke = Stroke(highlight && !temporary, xy)
@@ -762,7 +767,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
             val copy: List<Stroke>
             val file: File
             synchronized(this) {
-                if (!dirty || !editable) return
+                if (!dirty || !editable || loading) return
                 copy = ArrayList(strokes)
                 file = pageFile(day)
                 dirty = false
@@ -839,31 +844,46 @@ class UndiaView(context: Context) : SurfaceView(context) {
             save() // the page we are leaving
         } catch (t: Exception) {
         }
-        val loaded = readStrokes(pageFile(newDay))
+        // The page is read off the main thread (it can be a megabyte of SVG). Until it arrives the
+        // old page stays on the panel, and pen input is ignored.
+        val id: Int
         synchronized(this) {
             day = newDay
             today = newToday
             strokes.clear()
-            strokes.addAll(loaded)
             tempStrokes.clear()
             dirty = false
-            redrawAll()
+            loading = true
+            id = ++loadId
         }
         if (rawOpen) {
             if (!editable) highlighting = false // the highlighter is for today's page only
             applyStroke()
             touchHelper.setRawDrawingEnabled(true)
         }
-        blit()
-        main.post {
-            if (refresh) {
-                try {
-                    EpdController.applyGCOnce() // full refresh, so the old page leaves no ghost
-                } catch (t: Throwable) {
-                }
-                repaint(Rect(0, 0, width, height))
+        val file = pageFile(newDay)
+        loadExecutor.execute {
+            val loaded = readStrokes(file)
+            val current = synchronized(this) {
+                if (id != loadId) return@synchronized false // another page was asked for meanwhile
+                strokes.addAll(loaded)
+                loading = false
+                redrawAll()
+                true
             }
-            onDayChanged?.invoke(day, editable)
+            if (!current) return@execute
+            main.post {
+                if (id != loadId) return@post
+                blit()
+                if (refresh) {
+                    try {
+                        EpdController.applyGCOnce() // full refresh, so the old page leaves no ghost
+                    } catch (t: Throwable) {
+                    }
+                    repaint(Rect(0, 0, width, height))
+                }
+                onDayChanged?.invoke(day, editable)
+            }
         }
     }
 
