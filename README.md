@@ -94,3 +94,7 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 - **Onyx.** The pen and the e-ink screen are driven by Onyx's SDK, and their [OnyxAndroidDemo](https://github.com/onyx-intl/OnyxAndroidDemo) repository of API demos is the best documentation for it.
 - **Zodiak.** All the text, in the app and on the site, is set in Zodiak by Indian Type Foundry, a free font from [Fontshare](https://www.fontshare.com/fonts/zodiak) under the ITF Free Font License.
 - **booxday.** Thanks to fortolano, who made [booxday](https://github.com/fortolano/booxday), for the inspiration to go and build my own Boox app.
+
+## License
+
+The code is under the [MIT License](LICENSE). The Zodiak font files (`fonts/`, `app/src/main/res/font/`, `docs/assets/`) are not: they stay under the ITF Free Font License.
