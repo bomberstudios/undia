@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import java.time.LocalDate
@@ -20,12 +21,16 @@ import java.util.Locale
  */
 class CalendarGrid(context: Context) : View(context) {
     private val dp = resources.displayMetrics.density
-    private val sp = resources.displayMetrics.scaledDensity
-    private val headerH = 56 * dp
-    private val weekdayH = 32 * dp
-    private val rowH = 44 * dp
+    // Sizes in sp follow the system font size, including Android's non-linear scaling
+    private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
+
+    // The grid's rows get taller with a bigger font, so the numbers keep their room
+    private val boost = resources.configuration.fontScale.coerceAtLeast(1f)
+    private val headerH = 56 * dp * boost
+    private val weekdayH = 32 * dp * boost
+    private val rowH = 44 * dp * boost
     // 1 em of the day numbers (18 sp) of space on every side
-    private val sidePad = 18 * sp
+    private val sidePad = sp(18f)
     private val firstDay = WeekFields.of(Locale.getDefault()).firstDayOfWeek
     private val monthFormat = DateTimeFormatter.ofPattern("LLLL yyyy")
 
@@ -38,7 +43,7 @@ class CalendarGrid(context: Context) : View(context) {
 
     private fun textPaint(size: Float, color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color
-        textSize = size * sp
+        textSize = sp(size)
         textAlign = Paint.Align.CENTER
         typeface = resources.getFont(R.font.zodiak)
         fontFeatureSettings = "onum" // old-style figures, when the font has them

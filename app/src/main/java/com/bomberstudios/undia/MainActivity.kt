@@ -24,13 +24,18 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 class MainActivity : Activity() {
+    private companion object {
+        // How round the corners of the menu and the About window are
+        const val PANEL_CORNER_DP = 8
+    }
+
     private lateinit var canvas: UndiaView
     private lateinit var menuLayer: FrameLayout
     private lateinit var menu: ScrollView
     private lateinit var calendar: CalendarGrid
     private lateinit var backToToday: View
     private lateinit var aboutLayer: FrameLayout
-    private lateinit var aboutCard: LinearLayout
+    private lateinit var aboutCard: ScrollView
     // Shows the current tool. It is not a button: a one-finger tap anywhere switches pen/highlighter.
     private lateinit var modeButton: ModeButton
 
@@ -92,7 +97,7 @@ class MainActivity : Activity() {
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
                 setStroke((2 * dp).toInt(), Color.BLACK)
-                cornerRadius = 16 * dp
+                cornerRadius = PANEL_CORNER_DP * dp
             }
             clipToOutline = true
             isVerticalScrollBarEnabled = false
@@ -101,8 +106,8 @@ class MainActivity : Activity() {
 
         // The menu changes height when the calendar changes month: keep it centered
         menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f)
-            menu.translationY = ((canvas.height - menu.height) / 2f).coerceAtLeast(0f)
+            menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f) - menu.left
+            menu.translationY = ((canvas.height - menu.height) / 2f).coerceAtLeast(0f) - menu.top
         }
 
         // Full-screen scrim: tapping anywhere outside the menu closes it
@@ -110,17 +115,33 @@ class MainActivity : Activity() {
             visibility = View.GONE
             isClickable = true
             setOnClickListener { hideMenu() }
-            addView(menu, FrameLayout.LayoutParams((320 * dp).toInt(), -2))
+            addView(menu, FrameLayout.LayoutParams(menuWidth(), -2).apply {
+                val m = resources.displayMetrics.heightPixels * 5 / 100 // never touches the edges
+                topMargin = m
+                bottomMargin = m
+            })
         }
 
-        aboutCard = buildAboutCard(dp)
+        // The About text fits the screen at the normal font size. With a bigger one it scrolls.
+        aboutCard = ScrollView(this).apply {
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                setStroke((2 * dp).toInt(), Color.BLACK)
+                cornerRadius = PANEL_CORNER_DP * dp
+            }
+            clipToOutline = true
+            isVerticalScrollBarEnabled = false
+            addView(buildAboutCard(dp))
+        }
         aboutLayer = FrameLayout(this).apply {
             visibility = View.GONE
             isClickable = true
             setOnClickListener { hideAbout() } // tap anywhere to close
-            addView(aboutCard, FrameLayout.LayoutParams(
-                minOf((460 * dp).toInt(), resources.displayMetrics.widthPixels * 9 / 10), -2, Gravity.CENTER
-            ))
+            addView(aboutCard, FrameLayout.LayoutParams(aboutWidth(), -2, Gravity.CENTER).apply {
+                val m = resources.displayMetrics.heightPixels * 5 / 100 // never touches the edges
+                topMargin = m
+                bottomMargin = m
+            })
         }
 
         setContentView(FrameLayout(this).apply {
@@ -136,6 +157,22 @@ class MainActivity : Activity() {
         canvas.pagesDir = pages
         canvas.showDay(today, today, refresh = false)
     }
+
+    /**
+     * Text follows the system font size (sp). The panels follow it too, so that bigger text has
+     * room: they get wider (up to the screen) and the rows taller. Smaller than normal changes nothing.
+     */
+    private val fontBoost: Float get() = resources.configuration.fontScale.coerceAtLeast(1f)
+
+    private fun menuWidth() = minOf(
+        (320 * resources.displayMetrics.density * fontBoost).toInt(),
+        resources.displayMetrics.widthPixels * 9 / 10
+    )
+
+    private fun aboutWidth() = minOf(
+        (460 * resources.displayMetrics.density * fontBoost).toInt(),
+        resources.displayMetrics.widthPixels * 9 / 10
+    )
 
     private fun buildAboutCard(dp: Float): LinearLayout {
         val zodiak = resources.getFont(R.font.zodiak)
@@ -160,11 +197,6 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             val pad = (54 * dp).toInt()
             setPadding(pad, pad, pad, pad) // the same on every side; wide sides keep the lines short
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                setStroke((2 * dp).toInt(), Color.BLACK)
-                cornerRadius = 16 * dp
-            }
             addView(ImageView(context).apply {
                 setImageDrawable(getDrawable(R.mipmap.ic_launcher))
                 contentDescription = "undia icon"
@@ -212,9 +244,15 @@ class MainActivity : Activity() {
             fontFeatureSettings = "onum" // old-style figures, when the font has them
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            // The padding makes the row: 17.2 dp above and below the text, which with the text at the
+            // usual font size is the old 52 dp row. So more padding means a taller row, and so does
+            // bigger text. The bottom gets a little extra, which lifts the text: Zodiak's metrics
+            // leave it sitting low (1.07 dp measured, plus 1 dp by eye). 48 dp is the least a touch
+            // target should be.
+            minimumHeight = (48 * dp).toInt()
+            setPadding((16 * dp).toInt(), (17.2f * dp).toInt(), (16 * dp).toInt(), ((17.2f + 1.07f + 1) * dp).toInt())
             setOnClickListener { hideMenu(); onClick() }
-        }.also { parent.addView(it, LinearLayout.LayoutParams(-1, (52 * dp).toInt())) }
+        }.also { parent.addView(it, LinearLayout.LayoutParams(-1, -2)) }
     }
 
     private fun showMenu() {
@@ -229,16 +267,18 @@ class MainActivity : Activity() {
         val w = canvas.width
         val h = canvas.height
         menu.measure(
-            View.MeasureSpec.makeMeasureSpec((320 * resources.displayMetrics.density).toInt(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(menuWidth(), View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(h * 9 / 10, View.MeasureSpec.AT_MOST)
         )
-        menu.translationX = ((w - menu.measuredWidth) / 2f).coerceAtLeast(0f)
-        menu.translationY = ((h - menu.measuredHeight) / 2f).coerceAtLeast(0f)
+        menu.translationX = ((w - menu.measuredWidth) / 2f).coerceAtLeast(0f) - menu.left
+        menu.translationY = ((h - menu.measuredHeight) / 2f).coerceAtLeast(0f) - menu.top
     }
 
     private fun hideMenu() {
         if (menuLayer.visibility != View.VISIBLE) return
-        val area = Rect(menu.translationX.toInt(), menu.translationY.toInt(), 0, 0)
+        val area = Rect(
+            (menu.left + menu.translationX).toInt(), (menu.top + menu.translationY).toInt(), 0, 0
+        )
         area.right = area.left + menu.width
         area.bottom = area.top + menu.height
         menuLayer.visibility = View.GONE

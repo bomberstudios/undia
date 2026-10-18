@@ -70,6 +70,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
         const val SWIPE_MIN_FRACTION = 0.25f // of the page width
         const val ERASER_RADIUS_PX = 24f // debug builds only
         const val CURSOR_INTERVAL_MS = 30L // how often the eraser ring may move on screen
+        const val KOAN_LINE_HEIGHT_EM = 1.2f // baseline to baseline, in font sizes
         const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
@@ -924,22 +925,40 @@ class UndiaView(context: Context) : SurfaceView(context) {
     }
     private val dateFormat = DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")
 
+    /** Bigger system fonts make the date and the koan bigger; never smaller than designed. */
+    private val fontBoost: Float get() = resources.configuration.fontScale.coerceAtLeast(1f)
+
     /** The date, centered at the top of a past page, in the same font as the koans. */
     private fun drawDate(c: Canvas, w: Int, h: Int, day: LocalDate, p: TextPaint) {
-        p.textSize = w * 0.03825f // 15% smaller than 0.045
-        c.drawText(day.format(dateFormat), w / 2f, h * 0.06f + p.textSize, p)
+        val text = day.format(dateFormat)
+        p.textSize = w * 0.03825f * fontBoost // 15% smaller than 0.045
+        val tooWide = p.measureText(text) / (w * 0.92f)
+        if (tooWide > 1f) p.textSize /= tooWide // always inside the page
+        c.drawText(text, w / 2f, h * 0.06f + p.textSize, p)
     }
 
     private fun drawKoan(c: Canvas, w: Int, h: Int, day: LocalDate, p: TextPaint) {
         val margin = w * 0.12f
-        p.textSize = w * 0.055f
         val koan = Koans.forDay(day)
-        val layout = StaticLayout.Builder
-            .obtain(koan, 0, koan.length, p, (w - 2 * margin).toInt())
-            .setAlignment(Layout.Alignment.ALIGN_CENTER)
-            .setLineSpacing(0f, 1.1f)
-            .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED) // like CSS text-wrap: balance
-            .build()
+        fun layoutFor(size: Float): StaticLayout {
+            p.textSize = size
+            // Line height of 1.2 em: the distance between baselines is 1.2 times the font size
+            val natural = p.fontMetrics.let { it.descent - it.ascent }
+            return StaticLayout.Builder
+                .obtain(koan, 0, koan.length, p, (w - 2 * margin).toInt())
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .setIncludePad(false)
+                .setLineSpacing(KOAN_LINE_HEIGHT_EM * size - natural, 1f)
+                .setBreakStrategy(LineBreaker.BREAK_STRATEGY_BALANCED) // like CSS text-wrap: balance
+                .build()
+        }
+        // A big system font may not fit the page: shrink until it does, but never below the floor
+        var size = w * 0.055f * fontBoost
+        var layout = layoutFor(size)
+        while (layout.height > h * 0.62f && size > w * 0.03f) {
+            size *= 0.94f
+            layout = layoutFor(size)
+        }
         c.save()
         c.translate(margin, (h - layout.height) / 2f)
         layout.draw(c)
