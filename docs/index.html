@@ -8,56 +8,58 @@
   <meta name="description"
     content="undia is a one-page-a-day notebook for Boox e-ink tablets. One page per day, a fixed pen, no eraser, no undo.">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="preload" href="assets/Zodiak-Regular.otf" as="font" type="font/otf" crossorigin>
+  <link rel="preload" href="assets/Zodiak-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/Zodiak-Bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/Zodiak-Italic.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-Light.otf") format("opentype");
+      src: url("assets/Zodiak-Light.woff2") format("woff2"), url("assets/Zodiak-Light.otf") format("opentype");
       font-weight: 300;
       font-style: normal;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-LightItalic.otf") format("opentype");
+      src: url("assets/Zodiak-LightItalic.woff2") format("woff2"), url("assets/Zodiak-LightItalic.otf") format("opentype");
       font-weight: 300;
       font-style: italic;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-Regular.otf") format("opentype");
+      src: url("assets/Zodiak-Regular.woff2") format("woff2"), url("assets/Zodiak-Regular.otf") format("opentype");
       font-weight: 400;
       font-style: normal;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-Italic.otf") format("opentype");
+      src: url("assets/Zodiak-Italic.woff2") format("woff2"), url("assets/Zodiak-Italic.otf") format("opentype");
       font-weight: 400;
       font-style: italic;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-Bold.otf") format("opentype");
+      src: url("assets/Zodiak-Bold.woff2") format("woff2"), url("assets/Zodiak-Bold.otf") format("opentype");
       font-weight: 700;
       font-style: normal;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     /* Without this, italic text at weight 700 (the headings' <em>) is the regular italic with a
        synthetic bold smeared on top, which is not the real Bold Italic. */
     @font-face {
       font-family: "Zodiak";
-      src: url("assets/Zodiak-BoldItalic.otf") format("opentype");
+      src: url("assets/Zodiak-BoldItalic.woff2") format("woff2"), url("assets/Zodiak-BoldItalic.otf") format("opentype");
       font-weight: 700;
       font-style: italic;
-      font-display: swap;
+      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
     }
 
     :root {
