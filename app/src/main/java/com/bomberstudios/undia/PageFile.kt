@@ -9,9 +9,6 @@ open class InkStroke(val highlight: Boolean, val xy: FloatArray)
 object PageFile {
     const val HIGHLIGHT_HEX = "#ffcc00"
 
-    private val polyline = Regex("<polyline\\b([^>]*)>")
-    private val attribute = Regex("([\\w:-]+)\\s*=\\s*\"([^\"]*)\"")
-
     private fun fmt(v: Float) = String.format(Locale.US, "%.1f", v)
 
     fun toSvg(list: List<InkStroke>, w: Int, h: Int, penWidthPx: Float, highlightWidthPx: Float): String {
@@ -38,21 +35,66 @@ object PageFile {
         return sb.toString()
     }
 
-    /** Reads the strokes of a page. Anything unreadable is an empty page. */
+    /**
+     * Reads the strokes of a page. Anything unreadable is an empty page. A plain scanner, not a
+     * regex: pages hold hundreds of thousands of numbers and the Android regex engine is far too
+     * slow for that on the main thread.
+     */
     fun parse(svg: String): List<InkStroke> {
         val loaded = ArrayList<InkStroke>()
-        try {
-            for (tag in polyline.findAll(svg)) {
-                val attrs = attribute.findAll(tag.groupValues[1]).associate { it.groupValues[1] to it.groupValues[2] }
-                val highlight = attrs["stroke"]?.equals(HIGHLIGHT_HEX, ignoreCase = true) == true
-                val nums = attrs["points"]
-                    ?.split(' ', ',', '\n', '\t')?.filter { it.isNotEmpty() }?.map { it.toFloat() }
-                    ?: continue
-                if (nums.size >= 2 && nums.size % 2 == 0) loaded.add(InkStroke(highlight, nums.toFloatArray()))
+        var at = svg.indexOf("<polyline")
+        while (at >= 0) {
+            val end = svg.indexOf('>', at)
+            if (end < 0) break
+            val stroke = attribute(svg, at, end, "stroke")
+            val pointsAt = valueStart(svg, at, end, "points")
+            if (pointsAt >= 0) {
+                val xy = numbers(svg, pointsAt, svg.indexOf('"', pointsAt).takeIf { it in 0..end } ?: end)
+                    ?: return emptyList()
+                if (xy.size >= 2 && xy.size % 2 == 0) {
+                    loaded.add(InkStroke(stroke?.equals(HIGHLIGHT_HEX, ignoreCase = true) == true, xy))
+                }
             }
-        } catch (t: NumberFormatException) {
-            return emptyList()
+            at = svg.indexOf("<polyline", end)
         }
         return loaded
+    }
+
+    /** Where the value of name="..." starts inside the tag [from, to), or -1. */
+    private fun valueStart(s: String, from: Int, to: Int, name: String): Int {
+        var i = from
+        val key = "$name=\""
+        while (true) {
+            i = s.indexOf(key, i)
+            if (i < 0 || i >= to) return -1
+            // must be a whole attribute name, not the tail of another one (stroke-width)
+            if (s[i - 1].isWhitespace()) return i + key.length
+            i += key.length
+        }
+    }
+
+    private fun attribute(s: String, from: Int, to: Int, name: String): String? {
+        val start = valueStart(s, from, to, name)
+        if (start < 0) return null
+        val close = s.indexOf('"', start)
+        return if (close in 0..to) s.substring(start, close) else null
+    }
+
+    /** The numbers in s[from, to), separated by spaces, commas or newlines; null if one is not a number. */
+    private fun numbers(s: String, from: Int, to: Int): FloatArray? {
+        var out = FloatArray(64)
+        var n = 0
+        var i = from
+        while (i < to) {
+            val c = s[i]
+            if (c == ' ' || c == ',' || c == '\n' || c == '\t' || c == '\r') { i++; continue }
+            var j = i
+            while (j < to && s[j] != ' ' && s[j] != ',' && s[j] != '\n' && s[j] != '\t' && s[j] != '\r') j++
+            val v = s.substring(i, j).toFloatOrNull() ?: return null
+            if (n == out.size) out = out.copyOf(n * 2)
+            out[n++] = v
+            i = j
+        }
+        return out.copyOf(n)
     }
 }
