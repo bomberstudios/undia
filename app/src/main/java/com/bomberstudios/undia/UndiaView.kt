@@ -73,7 +73,11 @@ class UndiaView(context: Context) : SurfaceView(context) {
         const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
-        const val SMOOTH_DELAY_MS = 300L
+        // How long the pen must be away (not drawing, not hovering) before ink is repainted smooth
+        const val SMOOTH_DELAY_MS = 500L
+        const val QUICK_REPAINT_MS = 100L // for repaints that aren't ink: a closed menu, a fade step
+        const val MERGE_MARGIN_PX = 48 // areas this close are repainted together
+        const val MAX_AREAS = 8
     }
 
     /**
@@ -123,8 +127,11 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private var rawOpen = false
 
     private val main = Handler(Looper.getMainLooper())
-    private val pendingSmooth = Rect()
-    private val smoothRunnable = Runnable { smoothPending() }
+    // Areas waiting for a clean repaint; guarded by itself
+    private val pendingAreas = ArrayList<Rect>()
+    @Volatile private var smoothIdleMs = QUICK_REPAINT_MS
+    private val smoothExecutor = Executors.newSingleThreadExecutor()
+    private val smoothRunnable = Runnable { smoothWhenIdle() }
     private val fadeRunnable = Runnable { fadeStep() }
     @Volatile private var penDown = false
     private val revertRunnable = Runnable { if (highlighting) setHighlighter(false) }
@@ -500,9 +507,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
         area.intersect(0, 0, width, height)
         blit(area)
         main.post {
-            pendingSmooth.union(area)
-            main.removeCallbacks(smoothRunnable)
-            main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
+            queueSmooth(area, afterInk = true)
             main.removeCallbacks(saveRunnable)
             main.postDelayed(saveRunnable, SAVE_DELAY_MS)
         }
@@ -585,7 +590,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 bitmapCanvas?.let { render(it, stroke) }
             }
         }
-        // No blit here: the surface is updated later, in smoothPending, while the pen is idle.
+        // No blit here: the surface is updated later, by queueSmooth, once the pen has been idle.
         // Blitting right after a stroke can wipe the live ink of the next one, which the SDK is
         // already drawing on the panel when strokes are small, fast and overlapping.
         val area = bounds(stroke)
@@ -599,9 +604,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 main.removeCallbacks(revertRunnable)
                 main.postDelayed(revertRunnable, REVERT_TO_PEN_MS)
             }
-            pendingSmooth.union(area)
-            main.removeCallbacks(smoothRunnable)
-            main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
+            queueSmooth(area, afterInk = true) // every stroke restarts the wait
         }
     }
 
@@ -651,27 +654,73 @@ class UndiaView(context: Context) : SurfaceView(context) {
     }
 
     /**
-     * Raw drawing paints a rough preview straight on the panel. After a short pause, repaint
-     * the finished strokes from the antialiased bitmap, like Boox Notes does.
+     * Raw drawing paints a rough preview straight on the panel. Once the pen has been away for a
+     * while, the finished strokes are repainted from the antialiased bitmap, like Boox Notes does.
+     * [afterInk] waits [SMOOTH_DELAY_MS]; anything else only waits a moment. Every new request
+     * restarts the wait, and any pen activity (a new stroke, or just hovering) pushes it back.
      */
-    private fun smoothPending() {
-        if (!rawOpen || pendingSmooth.isEmpty) return
-        if (penDown) { // wait for the pen to lift: never repaint under it
-            main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
+    private fun queueSmooth(area: Rect, afterInk: Boolean) {
+        val grown = Rect(area).apply { inset(-MERGE_MARGIN_PX, -MERGE_MARGIN_PX) }
+        synchronized(pendingAreas) {
+            val merged = Rect(area)
+            val it = pendingAreas.iterator()
+            while (it.hasNext()) {
+                val r = it.next()
+                if (Rect.intersects(r, grown)) {
+                    merged.union(r)
+                    it.remove()
+                }
+            }
+            pendingAreas.add(merged)
+            if (pendingAreas.size > MAX_AREAS) { // too many: repaint one big area instead
+                val all = Rect(pendingAreas[0])
+                pendingAreas.forEach { all.union(it) }
+                pendingAreas.clear()
+                pendingAreas.add(all)
+            }
+        }
+        val wait = if (afterInk) SMOOTH_DELAY_MS else QUICK_REPAINT_MS
+        smoothIdleMs = maxOf(smoothIdleMs, wait)
+        main.removeCallbacks(smoothRunnable)
+        main.postDelayed(smoothRunnable, wait)
+    }
+
+    /** Main thread, and cheap: only decides whether it is time. The repainting is done elsewhere. */
+    private fun smoothWhenIdle() {
+        if (!rawOpen) return
+        val idle = SystemClock.elapsedRealtime() - lastPenAt
+        if (penDown || idle < smoothIdleMs) {
+            main.postDelayed(smoothRunnable, maxOf(100L, smoothIdleMs - idle))
             return
         }
-        val area = Rect(pendingSmooth)
-        pendingSmooth.setEmpty()
-        area.intersect(0, 0, width, height)
-        if (area.isEmpty) return
-        blit(area) // bring the surface up to date first, so the repaint below draws the new strokes
+        smoothExecutor.execute { smoothNow() }
+    }
+
+    /** On a background thread, so a slow panel call can't stall touch handling or the UI. */
+    private fun smoothNow() {
+        val areas = synchronized(pendingAreas) {
+            val copy = ArrayList(pendingAreas)
+            pendingAreas.clear()
+            smoothIdleMs = QUICK_REPAINT_MS
+            copy
+        }
+        if (areas.isEmpty() || !rawOpen) return
         try {
-            EpdController.handwritingRepaint(this, area)
+            for ((i, area) in areas.withIndex()) {
+                area.intersect(0, 0, width, height)
+                if (area.isEmpty) continue
+                if (penDown) { // the pen came back: never repaint under it; try again later
+                    areas.drop(i).forEach { queueSmooth(it, afterInk = true) }
+                    return
+                }
+                blit(area) // bring the surface up to date first, so the repaint draws the new strokes
+                EpdController.handwritingRepaint(this, area)
+            }
             EpdController.clearTransientUpdate(true)
             touchHelper.isRawDrawingRenderEnabled = false
             touchHelper.isRawDrawingRenderEnabled = true
         } catch (t: Throwable) {
-            // Not an e-ink device: the surface already holds the smooth stroke
+            // Not an e-ink device: the surface already holds the smooth strokes
         }
     }
 
@@ -694,7 +743,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
 
     private fun closeRaw() {
         main.removeCallbacks(smoothRunnable)
-        pendingSmooth.setEmpty()
+        synchronized(pendingAreas) { pendingAreas.clear() }
         if (!rawOpen) return
         touchHelper.setRawDrawingEnabled(false)
         touchHelper.closeRawDrawing()
@@ -705,13 +754,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     fun snapshot(): Bitmap? = synchronized(this) { bitmap?.copy(Bitmap.Config.ARGB_8888, false) }
 
     /** Repaints an area of the panel from the bitmap, e.g. after an overlay is dismissed. */
-    fun repaint(area: Rect) {
-        main.post {
-            pendingSmooth.union(area)
-            main.removeCallbacks(smoothRunnable)
-            main.postDelayed(smoothRunnable, 50)
-        }
-    }
+    fun repaint(area: Rect) = queueSmooth(area, afterInk = false)
 
     private fun pageFile(d: LocalDate) = File(pagesDir ?: error("pagesDir not set"), "$d.svg")
 
