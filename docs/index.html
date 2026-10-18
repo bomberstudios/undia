@@ -116,7 +116,6 @@
       color: #111;
       padding: 0 0.18em;
       margin: 0 -0.18em;
-      border-radius: 0.25em;
       -webkit-box-decoration-break: clone;
       box-decoration-break: clone;
     }
@@ -309,6 +308,7 @@
       letter-spacing: -0.02em;
       margin: 0 0 28px;
       max-width: 18ch;
+      text-wrap-style: balance;
     }
 
     h2 em {
@@ -382,6 +382,7 @@
       font-size: 1.5rem;
       margin: 0 0 10px;
       letter-spacing: -0.01em;
+      text-wrap-style: balance;
     }
 
     .step p {
@@ -443,7 +444,9 @@
     .dot {
       display: inline-block;
       border-radius: 50%;
-      vertical-align: -0.1em;
+      /* centered on the x-height; the markup has no spaces around the dots, the margins are the gap */
+      vertical-align: middle;
+      margin: 0 0.5em;
     }
 
     .dot.pen {
@@ -657,7 +660,8 @@
           <p>That small constraint changes how you write. You stop polishing and start noticing. A crossed-out thought
             stays crossed out, next to the one that replaced it. A bad doodle is still part of the day.</p>
           <p>At midnight the page closes and a clean one begins. Yesterday is still there to read, but it’s finished.
-            <em>Today’s page is the only one you can write on.</em></p>
+            <em>Today’s page is the only one you can write on.</em>
+          </p>
         </div>
       </div>
     </div>
@@ -702,7 +706,7 @@
         </figure>
         <figure class="screen">
           <div class="frame"><img src="screenshots/past.png" width="1072" height="1448" loading="lazy"
-              alt="A past day with nothing drawn, showing its date in orange and a koan: The crow on a branch, the moon behind it. Which is the stranger?">
+              alt="A past day with nothing drawn, showing its date in orange and a koan: A man asked the sea for directions. The sea said: yes.">
           </div>
           <figcaption>A past day with nothing on it. Date at the top, koan in the middle.</figcaption>
         </figure>
@@ -712,7 +716,7 @@
 
   <div class="koan-band">
     <div class="wrap">
-      <blockquote>Not every line needs a reason. Draw one anyway.</blockquote>
+      <blockquote>What is the sound of a pen hovering?</blockquote>
       <p>One of the koans undia shows on days you left empty.</p>
     </div>
   </div>
@@ -735,9 +739,9 @@
           </tr>
           <tr>
             <th scope="row">Tap with one finger</th>
-            <td>Switch between pen and highlighter. The mark at the top right shows which is on: a small <span
-                class="dot pen" role="img" aria-label="black dot"></span> for the pen, a larger <span class="dot hl"
-                role="img" aria-label="yellow circle"></span> for the highlighter.</td>
+            <td>Switch between pen and highlighter. The mark at the top right shows which is on: a small<span
+                class="dot pen" role="img" aria-label="black dot"></span>for the pen, a larger<span class="dot hl"
+                role="img" aria-label="yellow circle"></span>for the highlighter.</td>
           </tr>
           <tr>
             <th scope="row">Swipe left or right</th>
