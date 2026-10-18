@@ -4,6 +4,9 @@ A one-page-a-day notebook for the Boox Go6 Gen2.
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
+> [!NOTE]
+> **How this project was made.** An LLM wrote the code. I made the product design decisions and did the UI and UX polish: what undia is and isn't, how it looks, and how it feels to use.
+
 ## Screenshots
 
 | Today | Hold for the menu | About | A past day |
@@ -80,7 +83,9 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 - `UndiaView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover
 - `Exporter.kt`: clipboard, PDF and share
+- `PageFile.kt`: reading and writing the SVG pages
 - `Koans.kt`: the koans for empty days
+- `app/src/test`: unit tests for the koans and the page files (`./gradlew testDebugUnitTest`, run on every pull request)
 - `fonts/`: the Zodiak font files (copied, renamed, into `res/font/` for the app, which uses Zodiak for all text; the date and koans are in Zodiak Italic)
 - `design/undia.svg`: the app icon source; the Android version is `res/drawable/ic_launcher_foreground.xml` on an orange background
 
