@@ -1,6 +1,6 @@
 # undia
 
-A one-page-a-day notebook for the Boox Go6 Gen2 (Android 14).
+A one-page-a-day notebook for the Boox Go6 Gen2.
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
@@ -48,9 +48,13 @@ Debug builds (the ones from Android Studio or `./gradlew assembleDebug`) have on
 
 ## Devices
 
-Built and tested on the Go 6 Gen 2 (Android 14). Nothing is tied to its resolution: the pen is 0.2 mm wide and the highlighter 4 mm on any panel, because the sizes come from the real pixel density the device reports, and the layout uses dp and fractions of the screen. Other Boox tablets with a stylus, like the Go 10.3, should work, but only the Go 6 has been tried.
+Built and tested on a Boox Go 6 Gen 2 running firmware 4.2.2 (Android 13). That is the only device and firmware it has been tried on. Nothing is tied to its resolution: the pen is 0.2 mm wide and the highlighter 4 mm on any panel, because the sizes come from the real pixel density the device reports, and the layout uses dp and fractions of the screen. Other Boox tablets with a stylus, like the Go 10.3, should work, but only the Go 6 has been tried.
 
 The app takes drawing input from the stylus only (fingers are for gestures), so a device without a stylus can't draw on it.
+
+## Installing
+
+Download the signed APK from the [latest release](https://github.com/bomberstudios/undia/releases/latest) in your Boox's own browser, open it from the downloads, and tap Install. The first time, Android may ask you to allow installs from that browser. There is no need to use `adb`.
 
 ## Building
 
@@ -67,7 +71,7 @@ Every push to `main` that changes more than documentation (`*.md`, `docs/`, `LIC
 
 The signing key is stored in the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD`. A copy of the key and its password is in `~/.config/undia/` on the machine that created it; keep a backup, because an app can only be updated by APKs signed with the same key. A local release build uses the same key when `STORE_FILE`, `STORE_PASSWORD`, `KEY_ALIAS` and `KEY_PASSWORD` are set in the environment, and falls back to the debug key otherwise.
 
-The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it.
+The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo.boox.com/repository/maven-public/`), so the build needs network access to it. Onyx's own examples of how to use them are in [OnyxAndroidDemo](https://github.com/onyx-intl/OnyxAndroidDemo).
 
 ## Where things are
 
@@ -79,3 +83,9 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 - `Koans.kt`: the koans for empty days
 - `fonts/`: the Zodiak font files (copied, renamed, into `res/font/` for the app, which uses Zodiak for all text; the date and koans are in Zodiak Italic)
 - `design/undia.svg`: the app icon source; the Android version is `res/drawable/ic_launcher_foreground.xml` on an orange background
+
+## Thanks
+
+- **Onyx.** The pen and the e-ink screen are driven by Onyx's SDK, and their [OnyxAndroidDemo](https://github.com/onyx-intl/OnyxAndroidDemo) repository of API demos is the best documentation for it.
+- **Zodiak.** All the text, in the app and on the site, is set in Zodiak by Indian Type Foundry, a free font from [Fontshare](https://www.fontshare.com/fonts/zodiak) under the ITF Free Font License.
+- **booxday.** Thanks to fortolano, who made [booxday](https://github.com/fortolano/booxday), for the inspiration to go and build my own Boox app.
