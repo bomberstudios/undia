@@ -31,6 +31,7 @@ class MainActivity : Activity() {
     private lateinit var backToToday: View
     private lateinit var aboutLayer: FrameLayout
     private lateinit var aboutCard: LinearLayout
+    // Shows the current tool. It is not a button: a one-finger tap anywhere switches pen/highlighter.
     private lateinit var modeButton: ModeButton
 
     private var today = LocalDate.now()
@@ -45,7 +46,7 @@ class MainActivity : Activity() {
 
         canvas = UndiaView(this).apply {
             // The pen is ignored only around the mark itself (the button is 48 dp, the mark is smaller)
-            val markBox = (32 * dp).toInt()
+            val markBox = 0 // nothing to protect: the indicator isn't touchable, so the pen can draw under it
             reservedWidth = markBox
             reservedHeight = markBox
             reservedInsetRight = margin + (size - markBox) / 2
@@ -53,9 +54,7 @@ class MainActivity : Activity() {
             onLongPress = { _, _ -> showMenu() }
         }
 
-        modeButton = ModeButton(this).apply {
-            setOnClickListener { canvas.toggleMode() }
-        }
+        modeButton = ModeButton(this)
         canvas.onModeChanged = { modeButton.highlighting = it }
 
         canvas.onDayChanged = { _, editable ->

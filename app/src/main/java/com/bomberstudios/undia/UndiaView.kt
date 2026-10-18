@@ -30,6 +30,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewConfiguration
 import com.onyx.android.sdk.api.device.epd.EpdController
+import com.onyx.android.sdk.api.device.epd.UpdateMode
 import com.onyx.android.sdk.data.note.TouchPoint
 import com.onyx.android.sdk.pen.RawInputCallback
 import com.onyx.android.sdk.pen.TouchHelper
@@ -37,7 +38,7 @@ import com.onyx.android.sdk.pen.data.TouchPointList
 import com.onyx.android.sdk.pen.style.StrokeStyle
 
 /**
- * Blank white canvas with a fixed-width 0.2 mm pen; the pen's side button toggles pen/highlighter. The Onyx SDK draws the live
+ * Blank white canvas with a fixed-width 0.2 mm pen; a one-finger tap toggles pen/highlighter. The Onyx SDK draws the live
  * stroke on the EPD; we mirror finished strokes into a bitmap so they survive
  * surface redraws.
  *
@@ -61,9 +62,12 @@ class UndiaView(context: Context) : SurfaceView(context) {
         const val TAP_MAX_MS = 600L
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
-        const val TAP_MAX_SINGLE_MS = 250L
+        const val TAP_MAX_SINGLE_MS = 250L // longest touch that still counts as a tap
+        const val TAP_CONFIRM_MS = 180L // wait before a tap on today's page toggles the tool
         const val SWIPE_MAX_MS = 800L
         const val SWIPE_MIN_FRACTION = 0.25f // of the page width
+        const val ERASER_RADIUS_PX = 24f // debug builds only
+        const val CURSOR_INTERVAL_MS = 30L // how often the eraser ring may move on screen
         const val SAVE_DELAY_MS = 3000L
         const val MIN_SEGMENT_PX = 3f
         // Pause after the last stroke before it is repainted smooth
@@ -85,6 +89,9 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // Only used by temporary strokes: when it was drawn and how faded it is (0 = fresh)
         val born: Long = SystemClock.elapsedRealtime()
         var level = 0
+
+        // DEBUG BUILDS ONLY: under the eraser, drawn lighter, removed when the pen lifts
+        var marked = false
     }
 
     // Guarded by synchronized(this), like the bitmap
@@ -147,6 +154,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.DARKEN)
     }
 
+    // How strokes look while the (debug) eraser is over them: lighter, to confirm they will go
+    private val markedPenPaint = Paint(paint).apply { color = Color.rgb(0xb8, 0xb8, 0xb8) }
+    private val markedHighlightPaint = Paint(highlightPaint).apply { color = Color.rgb(0xff, 0xe6, 0x80) }
+
     private val callback = object : RawInputCallback() {
         override fun onBeginRawDrawing(b: Boolean, p: TouchPoint?) {
             // Don't repaint under the pen while the user is still writing
@@ -163,15 +174,44 @@ class UndiaView(context: Context) : SurfaceView(context) {
             commitStroke(list, highlighting)
         }
 
-        // Touching down with the pen's side button held reaches us as an "erase" stroke.
-        // We never erase: it flips between pen and highlighter, and the stroke is dropped.
+        // The SDK reports a stroke made with the pen's side button held as an "erase" stroke.
+        // In release builds nothing can be erased and the button does nothing. Debug builds use it
+        // as an eraser, so that test pages can be cleaned up.
         override fun onBeginRawErasing(b: Boolean, p: TouchPoint?) {
+            if (!BuildConfig.DEBUG) return
+            penDown = true // no smoothing or fading under the eraser
             main.removeCallbacks(smoothRunnable)
-            if (editable) setHighlighter(!highlighting)
+            // Rough, fast screen updates while erasing; the quality comes back when the pen lifts
+            main.post { try { EpdController.applyTransientUpdate(UpdateMode.ANIMATION_X) } catch (t: Throwable) {} }
         }
-        override fun onEndRawErasing(b: Boolean, p: TouchPoint?) {}
-        override fun onRawErasingTouchPointMoveReceived(p: TouchPoint?) {}
-        override fun onRawErasingTouchPointListReceived(list: TouchPointList?) {}
+        override fun onEndRawErasing(b: Boolean, p: TouchPoint?) {
+            if (!BuildConfig.DEBUG) return
+            penDown = false
+            commitErase() // normally done already; this makes sure nothing stays marked
+            main.post {
+                clearEraserCursor()
+                try { EpdController.clearTransientUpdate(true) } catch (t: Throwable) {}
+                main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS) // clean repaint of what changed
+            }
+        }
+        override fun onRawErasingTouchPointMoveReceived(p: TouchPoint?) {
+            // Live: strokes disappear as the eraser reaches them
+            if (BuildConfig.DEBUG && p != null) {
+                markAt(listOf(p.x to p.y)) // lighter, to confirm; removed when the pen lifts
+                val now = SystemClock.elapsedRealtime()
+                if (now - lastCursorAt >= CURSOR_INTERVAL_MS) {
+                    lastCursorAt = now
+                    val x = p.x
+                    val y = p.y
+                    main.post { drawEraserCursor(x, y) }
+                }
+            }
+        }
+        override fun onRawErasingTouchPointListReceived(list: TouchPointList?) {
+            if (!BuildConfig.DEBUG) return
+            markAt(list?.points?.map { it.x to it.y } ?: emptyList()) // the whole path, in case moves were missed
+            commitErase()
+        }
     }
 
     @Volatile
@@ -185,22 +225,34 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val startX = FloatArray(3)
     private val startY = FloatArray(3)
 
+    /** A one-finger tap switches pen/highlighter (on today's page). */
+    var tapTogglesMode = true
+
     private var lastTapAt = 0L
     private var lastTapX = 0f
     private var lastTapY = 0f
+    private val toggleRunnable = Runnable { if (tapTogglesMode && editable) toggleMode() }
 
-    /** Two quick taps in the same place go back to today. */
-    private fun singleTap(e: MotionEvent) {
+    /**
+     * A tap can't be told from the first half of a double tap until the double-tap window has passed,
+     * so on today's page the toggle waits [TAP_CONFIRM_MS], shorter than Android's usual ~300 ms. A
+     * double tap there cancels it and does nothing. On a past page a single tap does nothing, so the
+     * full window is free: two taps go back to today.
+     */
+    private fun tap(e: MotionEvent) {
+        val window = if (editable) TAP_CONFIRM_MS else ViewConfiguration.getDoubleTapTimeout().toLong()
         val doubleSlop = ViewConfiguration.get(context).scaledDoubleTapSlop
-        val isSecond = lastTapAt != 0L && e.eventTime - lastTapAt < ViewConfiguration.getDoubleTapTimeout() &&
+        val isSecond = lastTapAt != 0L && e.eventTime - lastTapAt < window &&
             Math.hypot((e.x - lastTapX).toDouble(), (e.y - lastTapY).toDouble()) <= doubleSlop
         if (isSecond) {
             lastTapAt = 0L
+            main.removeCallbacks(toggleRunnable)
             if (day != today) showDay(today, today)
         } else {
             lastTapAt = e.eventTime
             lastTapX = e.x
             lastTapY = e.y
+            if (editable) main.postDelayed(toggleRunnable, TAP_CONFIRM_MS)
         }
     }
 
@@ -237,7 +289,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 ) swipeDay(if (dx < 0) 1 else -1)
                 else if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < TAP_MAX_SINGLE_MS &&
                     Math.hypot(dx.toDouble(), dy.toDouble()) <= slop
-                ) singleTap(e)
+                ) tap(e)
             }
             MotionEvent.ACTION_CANCEL -> main.removeCallbacks(longPressRunnable)
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -310,15 +362,15 @@ class UndiaView(context: Context) : SurfaceView(context) {
      * A wide stroke drawn as one path shows artifacts on tight corners. Segment by segment with
      * round caps, the overlaps are the same flat gray and so come out clean (DARKEN never stacks).
      */
-    private fun drawHighlight(c: Canvas, xy: FloatArray) {
+    private fun drawHighlight(c: Canvas, xy: FloatArray, p: Paint) {
         var lx = xy[0]
         var ly = xy[1]
-        c.drawPoint(lx, ly, highlightPaint)
+        c.drawPoint(lx, ly, p)
         for (i in 2 until xy.size step 2) {
             val x = xy[i]
             val y = xy[i + 1]
             if (Math.hypot((x - lx).toDouble(), (y - ly).toDouble()) < MIN_SEGMENT_PX) continue
-            c.drawLine(lx, ly, x, y, highlightPaint)
+            c.drawLine(lx, ly, x, y, p)
             lx = x
             ly = y
         }
@@ -326,14 +378,14 @@ class UndiaView(context: Context) : SurfaceView(context) {
 
     private fun render(c: Canvas, s: Stroke) {
         if (s.highlight) {
-            drawHighlight(c, s.xy)
+            drawHighlight(c, s.xy, if (s.marked) markedHighlightPaint else highlightPaint)
         } else {
             val path = Path().apply {
                 moveTo(s.xy[0], s.xy[1])
                 if (s.xy.size == 2) lineTo(s.xy[0] + 0.01f, s.xy[1])
                 for (i in 2 until s.xy.size step 2) lineTo(s.xy[i], s.xy[i + 1])
             }
-            c.drawPath(path, paint)
+            c.drawPath(path, if (s.marked) markedPenPaint else paint)
         }
     }
 
@@ -356,6 +408,117 @@ class UndiaView(context: Context) : SurfaceView(context) {
         }
         val pad = (if (s.highlight) highlightWidthPx else penWidthPx) + 2f
         return Rect((l - pad).toInt(), (t - pad).toInt(), (r + pad).toInt() + 1, (b + pad).toInt() + 1)
+    }
+
+    /**
+     * DEBUG BUILDS ONLY: marks every stroke of today's page that one of [points] is over. Marked
+     * strokes are drawn lighter right away; nothing is removed until [commitErase].
+     */
+    private fun markAt(points: List<Pair<Float, Float>>) {
+        if (points.isEmpty() || !editable) return
+        val area = Rect()
+        synchronized(this) {
+            for (stroke in strokes) {
+                if (stroke.marked) continue
+                val r = ERASER_RADIUS_PX + (if (stroke.highlight) highlightWidthPx else penWidthPx) / 2
+                if (points.any { (x, y) -> touches(stroke, x, y, r) }) {
+                    stroke.marked = true
+                    area.union(bounds(stroke))
+                }
+            }
+            if (area.isEmpty) return
+            redrawAll()
+        }
+        area.intersect(0, 0, width, height)
+        blit(area)
+        main.post { fastRefresh(area) }
+    }
+
+    /** DEBUG BUILDS ONLY: removes the marked strokes, once the eraser lifts. */
+    private fun commitErase() {
+        val area = Rect()
+        synchronized(this) {
+            val it = strokes.iterator()
+            while (it.hasNext()) {
+                val stroke = it.next()
+                if (!stroke.marked) continue
+                area.union(bounds(stroke))
+                it.remove()
+            }
+            if (area.isEmpty) return
+            dirty = true
+            redrawAll()
+        }
+        area.intersect(0, 0, width, height)
+        blit(area)
+        main.post {
+            pendingSmooth.union(area)
+            main.removeCallbacks(smoothRunnable)
+            main.postDelayed(smoothRunnable, SMOOTH_DELAY_MS)
+            main.removeCallbacks(saveRunnable)
+            main.postDelayed(saveRunnable, SAVE_DELAY_MS)
+        }
+    }
+
+    // DEBUG BUILDS ONLY: a ring that follows the eraser
+    private val cursorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.BLACK
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    private var eraserCursor: Rect? = null
+    private var lastCursorAt = 0L
+
+    private fun fastRefresh(a: Rect) {
+        try {
+            EpdController.refreshScreenRegion(this, a.left, a.top, a.width(), a.height(), UpdateMode.ANIMATION_MONO)
+        } catch (t: Throwable) {
+            // Not an e-ink device
+        }
+    }
+
+    /** Puts the ring at (x, y): redraws the page under the old ring, then draws the new one. */
+    private fun drawEraserCursor(x: Float, y: Float) {
+        val bmp = bitmap ?: return
+        if (!holder.surface.isValid) return
+        val r = ERASER_RADIUS_PX + cursorPaint.strokeWidth
+        val now = Rect((x - r).toInt(), (y - r).toInt(), (x + r).toInt() + 1, (y + r).toInt() + 1)
+        val dirty = Rect(now)
+        eraserCursor?.let { dirty.union(it) }
+        dirty.intersect(0, 0, width, height)
+        val c = holder.lockCanvas(dirty) ?: return
+        try {
+            synchronized(this) { c.drawBitmap(bmp, 0f, 0f, null) }
+            c.drawCircle(x, y, ERASER_RADIUS_PX, cursorPaint)
+        } finally {
+            holder.unlockCanvasAndPost(c)
+        }
+        eraserCursor = now
+        fastRefresh(dirty)
+    }
+
+    private fun clearEraserCursor() {
+        val old = eraserCursor ?: return
+        eraserCursor = null
+        blit(old)
+        fastRefresh(old)
+    }
+
+    /** Whether the point (x, y) is within [r] of the stroke's line. */
+    private fun touches(s: Stroke, x: Float, y: Float, r: Float): Boolean {
+        val xy = s.xy
+        val r2 = r * r
+        if (xy.size == 2) return (x - xy[0]) * (x - xy[0]) + (y - xy[1]) * (y - xy[1]) <= r2
+        for (i in 0 until xy.size - 2 step 2) {
+            val ax = xy[i]; val ay = xy[i + 1]
+            val dx = xy[i + 2] - ax; val dy = xy[i + 3] - ay
+            val len2 = dx * dx + dy * dy
+            val t = if (len2 == 0f) 0f else (((x - ax) * dx + (y - ay) * dy) / len2).coerceIn(0f, 1f)
+            val px = ax + t * dx - x
+            val py = ay + t * dy - y
+            if (px * px + py * py <= r2) return true
+        }
+        return false
     }
 
     private fun commitStroke(list: TouchPointList?, highlight: Boolean) {
@@ -468,10 +631,13 @@ class UndiaView(context: Context) : SurfaceView(context) {
         closeRaw()
         touchHelper
             .setLimitRect(mutableListOf(Rect(0, 0, w, h)))
-            .setExcludeRect(listOf(Rect(
-                w - reservedInsetRight - reservedWidth, reservedInsetTop,
-                w - reservedInsetRight, reservedInsetTop + reservedHeight
-            )))
+            .setExcludeRect(
+                if (reservedWidth <= 0) emptyList() // no button to protect
+                else listOf(Rect(
+                    w - reservedInsetRight - reservedWidth, reservedInsetTop,
+                    w - reservedInsetRight, reservedInsetTop + reservedHeight
+                ))
+            )
             .openRawDrawing()
         setHighlighter(highlighting)
         touchHelper.setRawDrawingEnabled(true)

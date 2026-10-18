@@ -25,8 +25,7 @@ Taken on a Go 6 Gen 2. The panel is black and white, so the orange date and the 
 | Do this | To get this |
 | --- | --- |
 | Draw with the pen | 0.2 mm black line |
-| Tap the mark at the top right (a dot or a circle), or tap with three fingers | Switch between pen (small black dot) and highlighter (larger colored circle). The mark has no background, so you can draw right up to it; the pen only skips a small area around it, and a finger works anywhere on it |
-| Touch the screen with the pen's side button held | Same switch, from the pen |
+| Tap with one finger (or three) | Switch between pen and highlighter. The mark at the top right shows which one is on: a small black dot for the pen, a larger colored circle for the highlighter. It's only an indicator, so you can draw right under it |
 | Swipe left or right with one finger | Next or previous day (never past today) |
 | Double-tap with one finger | Go back to today |
 | Hold one finger on the screen | Open the menu |
@@ -42,6 +41,10 @@ The menu has a **calendar** to jump to any day up to today (past days open read-
 - Back to today (when you are on a past day)
 
 Past pages show their date, centered at the top in the same font as the koans (Zodiak Italic). Today's page shows no date.
+
+## Debug builds
+
+Debug builds (the ones from Android Studio or `./gradlew assembleDebug`) have one extra: holding the pen's side button and drawing over strokes erases them, so test pages can be cleaned up. Release builds can't erase anything.
 
 ## Devices
 

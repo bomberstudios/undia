@@ -25,7 +25,7 @@ class ModeButton(context: Context) : View(context) {
         }
 
     init {
-        isClickable = true
+        isClickable = false // an indicator only: touches fall through to the page below
         contentDescription = "Pen"
     }
 
