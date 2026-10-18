@@ -1,11 +1,11 @@
 # undia
 
-A one-page-a-day notebook for the Boox Go6 Gen2.
+A one-page-a-day notebook for Boox tablets with stylus support.
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
 > [!NOTE]
-> **How this project was made.** An LLM wrote the code. I made the product design decisions and did the UI and UX polish: what undia is and isn't, how it looks, and how it feels to use.
+> **How this project was made.** An LLM wrote 99.9% of the code. I made all product design decisions, including spending an absurd amount of time on UI and UX polish. What undia is and isn't, how it looks, and how it feels to use, is 100% human made. Code was just a means to get us there.
 
 ## Screenshots
 
