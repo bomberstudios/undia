@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.Executors
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -233,6 +234,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
     // Finger tap: three fingers toggle pen/highlighter. Pen input is handled by the
     // SDK, so this only ever sees fingers.
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downAt = 0L // DEBUG log: when the current finger went down, and how large it was
+    private var downSizeMm = 0f
+    private var maxSizeMm = 0f
+    private var lastToggleAt = 0L
     private var tapArmed = false
     private var tapFingers = 1
     private val startX = FloatArray(3)
@@ -275,11 +280,23 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private var lastPenAt = 0L
 
     private fun notePen() {
-        lastPenAt = SystemClock.elapsedRealtime()
+        val now = SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG && lastToggleAt != 0L && now - lastToggleAt < 1500 && now - lastPenAt > PEN_GUARD_MS) {
+            TapLog.log("pen arrived ${now - lastToggleAt} ms after a toggle (suspect false toggle)")
+            lastToggleAt = 0L
+        }
+        lastPenAt = now
     }
 
     /** The pen is touching, hovering just above the screen, or was a moment ago. */
     private fun penActive() = SystemClock.elapsedRealtime() - lastPenAt < PEN_GUARD_MS
+
+    /** DEBUG log: the biggest contact among the pointers, in millimetres. */
+    private fun sizeMm(e: MotionEvent): Float {
+        var m = 0f
+        for (i in 0 until e.pointerCount) m = maxOf(m, e.getTouchMajor(i))
+        return m / ppi * 25.4f
+    }
 
     /** Flagged as a palm by Android, cancelled by it, or much bigger than a fingertip. */
     private fun looksLikePalm(e: MotionEvent): Boolean {
@@ -326,11 +343,22 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // Palm rejection: a hand resting on the screen to write is not a gesture. Ignore touches
         // while the pen is near or has just been used, and touches that look like a palm.
         if (penActive() || looksLikePalm(e)) {
+            if (BuildConfig.DEBUG && (e.actionMasked == MotionEvent.ACTION_DOWN || e.actionMasked == MotionEvent.ACTION_UP)) {
+                TapLog.log("${if (e.actionMasked == MotionEvent.ACTION_DOWN) "down" else "up"} ignored: " +
+                    (if (penActive()) "pen near (${SystemClock.elapsedRealtime() - lastPenAt} ms ago)" else "palm") +
+                    " size=${"%.1f".format(Locale.US, sizeMm(e))}mm")
+            }
             cancelGestures()
             return true
         }
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (BuildConfig.DEBUG) {
+                    downAt = e.eventTime
+                    downSizeMm = sizeMm(e)
+                    maxSizeMm = downSizeMm
+                    TapLog.log("down size=${"%.1f".format(Locale.US, downSizeMm)}mm sincePen=${SystemClock.elapsedRealtime() - lastPenAt}ms")
+                }
                 tapArmed = true
                 tapFingers = 1
                 pressX = e.x
@@ -339,6 +367,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
             }
             MotionEvent.ACTION_UP -> {
                 main.removeCallbacks(longPressRunnable)
+                if (BuildConfig.DEBUG) {
+                    TapLog.log("up after ${e.eventTime - e.downTime}ms moved=${"%.0f".format(Locale.US, Math.hypot((e.x - pressX).toDouble(), (e.y - pressY).toDouble()))}px " +
+                        "maxSize=${"%.1f".format(Locale.US, maxOf(maxSizeMm, sizeMm(e)))}mm fingers=$tapFingers armed=$tapArmed")
+                }
                 val dx = e.x - pressX
                 val dy = e.y - pressY
                 // One finger, mostly sideways, far and quick enough: turn the page
@@ -360,6 +392,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 }
             }
             MotionEvent.ACTION_MOVE -> {
+                if (BuildConfig.DEBUG) maxSizeMm = maxOf(maxSizeMm, sizeMm(e))
                 if (e.pointerCount == 1 &&
                     Math.hypot((e.x - pressX).toDouble(), (e.y - pressY).toDouble()) > slop
                 ) main.removeCallbacks(longPressRunnable)
@@ -391,15 +424,18 @@ class UndiaView(context: Context) : SurfaceView(context) {
     var reservedInsetRight = 0
     var reservedInsetTop = 0
 
-    /** Called on the main thread whenever the mode changes. */
-    var onModeChanged: ((highlighting: Boolean) -> Unit)? = null
-
-    fun toggleMode() = setHighlighter(!highlighting)
+    fun toggleMode() {
+        if (BuildConfig.DEBUG) {
+            lastToggleAt = SystemClock.elapsedRealtime()
+            TapLog.log("TOGGLE to ${if (!highlighting) "highlighter" else "pen"}")
+        }
+        setHighlighter(!highlighting)
+    }
 
     private fun setHighlighter(on: Boolean) {
         main.removeCallbacks(revertRunnable)
         highlighting = on
-        main.post { onModeChanged?.invoke(on) }
+        main.post { refreshIndicator() }
         applyStroke()
     }
 
@@ -614,6 +650,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private val touchHelper: TouchHelper = TouchHelper.create(this, callback)
 
     init {
+        TapLog.init(context)
         holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(h: SurfaceHolder) {}
 
@@ -651,10 +688,41 @@ class UndiaView(context: Context) : SurfaceView(context) {
         val c = (if (dirty == null) holder.lockCanvas() else holder.lockCanvas(dirty)) ?: return
         try {
             synchronized(this) { c.drawBitmap(bmp, 0f, 0f, null) }
+            drawIndicator(c)
         } finally {
             holder.unlockCanvasAndPost(c)
         }
     }
+
+    // The pen/highlighter indicator, top right. It is drawn on the surface only, never into the
+    // page bitmap (so not into exports), and it is refreshed as a small region of its own: a view
+    // for it made the whole panel refresh every time the tool changed.
+    private val indicatorDp = resources.displayMetrics.density
+    private val indicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    private fun indicatorRect(): Rect {
+        val cx = width - (8 + 24) * indicatorDp
+        val cy = (8 + 24) * indicatorDp
+        val r = 12 * indicatorDp
+        return Rect((cx - r).toInt(), (cy - r).toInt(), (cx + r).toInt(), (cy + r).toInt())
+    }
+
+    private fun drawIndicator(c: Canvas) {
+        if (!editable || loading) return
+        val box = indicatorRect()
+        if (!Rect.intersects(box, c.clipBounds)) return
+        if (highlighting) {
+            indicatorPaint.color = HIGHLIGHT_COLOR
+            c.drawCircle(box.exactCenterX(), box.exactCenterY(), 9 * indicatorDp, indicatorPaint)
+        } else {
+            indicatorPaint.color = Color.BLACK
+            c.drawCircle(box.exactCenterX(), box.exactCenterY(), 4 * indicatorDp, indicatorPaint)
+        }
+    }
+
+    // Through the same repaint path as the smoothing and a closed menu: that is the update that
+    // doesn't flash the panel, unlike a refresh requested straight from here.
+    private fun refreshIndicator() = queueSmooth(indicatorRect(), afterInk = false)
 
     /**
      * Raw drawing paints a rough preview straight on the panel. Once the pen has been away for a

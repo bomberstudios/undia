@@ -37,7 +37,6 @@ class MainActivity : Activity() {
     private lateinit var aboutLayer: FrameLayout
     private lateinit var aboutCard: ScrollView
     // Shows the current tool. It is not a button: a one-finger tap anywhere switches pen/highlighter.
-    private lateinit var modeButton: ModeButton
 
     private var today = LocalDate.now()
     private val handler = Handler(Looper.getMainLooper())
@@ -57,13 +56,6 @@ class MainActivity : Activity() {
             reservedInsetRight = margin + (size - markBox) / 2
             reservedInsetTop = margin + (size - markBox) / 2
             onLongPress = { _, _ -> showMenu() }
-        }
-
-        modeButton = ModeButton(this)
-        canvas.onModeChanged = { modeButton.highlighting = it }
-
-        canvas.onDayChanged = { _, editable ->
-            modeButton.visibility = if (editable) View.VISIBLE else View.INVISIBLE
         }
 
         calendar = CalendarGrid(this).apply {
@@ -146,9 +138,6 @@ class MainActivity : Activity() {
 
         setContentView(FrameLayout(this).apply {
             addView(canvas, FrameLayout.LayoutParams(-1, -1))
-            addView(modeButton, FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.END).apply {
-                setMargins(margin, margin, margin, margin)
-            })
             addView(menuLayer, FrameLayout.LayoutParams(-1, -1))
             addView(aboutLayer, FrameLayout.LayoutParams(-1, -1))
         })
