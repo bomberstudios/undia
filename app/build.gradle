@@ -17,7 +17,11 @@ android {
         // Shown in About; CI passes the date of the run
         buildConfigField 'String', 'BUILD_DATE', '"' + (System.getenv('BUILD_DATE') ?: new Date().format('yyyy-MM-dd')) + '"'
         // Boox tablets are arm64
-        ndk { abiFilters 'arm64-v8a' }
+        // Symbol tables for the native libraries (Onyx's), so Play can read their crash reports
+        ndk {
+            abiFilters 'arm64-v8a'
+            debugSymbolLevel 'SYMBOL_TABLE'
+        }
     }
 
     // Release signing comes from the environment (CI, or a local shell); without it a local
@@ -69,8 +73,6 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-compat'
         exclude group: 'com.android.support', module: 'appcompat-v7'
     }
-    // The Onyx SDK calls hidden APIs
-    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
     implementation 'io.reactivex.rxjava2:rxjava:2.2.21'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
