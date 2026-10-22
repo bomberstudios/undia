@@ -4,9 +4,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>undia — the notebook that does less</title>
+  <title>undia • the notebook that does less</title>
   <meta name="description"
-    content="undia is a one-page-a-day notebook for Android tablets, at its best on e-ink. One page per day, a fixed pen, no eraser, no undo.">
+    content="undia is the notebook that does less. One day, one page, one pen. No eraser and no undo. Optimized for e-ink, but works on any Android device.">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/Zodiak-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/Zodiak-Bold.woff2" as="font" type="font/woff2" crossorigin>
@@ -17,7 +17,7 @@
       src: url("assets/Zodiak-Light.woff2") format("woff2"), url("assets/Zodiak-Light.otf") format("opentype");
       font-weight: 300;
       font-style: normal;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
     @font-face {
@@ -25,7 +25,7 @@
       src: url("assets/Zodiak-LightItalic.woff2") format("woff2"), url("assets/Zodiak-LightItalic.otf") format("opentype");
       font-weight: 300;
       font-style: italic;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
     @font-face {
@@ -33,7 +33,7 @@
       src: url("assets/Zodiak-Regular.woff2") format("woff2"), url("assets/Zodiak-Regular.otf") format("opentype");
       font-weight: 400;
       font-style: normal;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
     @font-face {
@@ -41,7 +41,7 @@
       src: url("assets/Zodiak-Italic.woff2") format("woff2"), url("assets/Zodiak-Italic.otf") format("opentype");
       font-weight: 400;
       font-style: italic;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
     @font-face {
@@ -49,17 +49,15 @@
       src: url("assets/Zodiak-Bold.woff2") format("woff2"), url("assets/Zodiak-Bold.otf") format("opentype");
       font-weight: 700;
       font-style: normal;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
-    /* Without this, italic text at weight 700 (the headings' <em>) is the regular italic with a
-       synthetic bold smeared on top, which is not the real Bold Italic. */
     @font-face {
       font-family: "Zodiak";
       src: url("assets/Zodiak-BoldItalic.woff2") format("woff2"), url("assets/Zodiak-BoldItalic.otf") format("opentype");
       font-weight: 700;
       font-style: italic;
-      font-display: block; /* no flash of the fallback font: the text waits for Zodiak, which is preloaded */
+      font-display: block;
     }
 
     :root {
@@ -116,6 +114,7 @@
     }
 
     /* the highlighter */
+
     mark {
       background: linear-gradient(transparent 12%, var(--yellow) 12%, var(--yellow) 92%, transparent 92%);
       color: #111;
@@ -124,7 +123,6 @@
       box-decoration-break: clone;
     }
 
-    /* in the big heading the highlight stays tucked in against the full stop, and the line stays whole */
     h1 mark {
       margin: 0 -0.18em 0 0;
     }
@@ -176,16 +174,12 @@
     }
 
     @media (max-width: 560px) {
-      nav.links .hide-s {
-        display: none;
-      }
-
       nav.links {
         gap: 16px;
         font-size: 0.95rem;
       }
 
-      nav.links a[href="#philosophy"] {
+      nav.links a[href="#minifesto"] {
         display: none;
       }
     }
@@ -195,7 +189,6 @@
       overflow-x: clip;
     }
 
-    /* hero */
     .hero-text {
       container-type: inline-size;
     }
@@ -210,13 +203,10 @@
 
     h1 {
       font-weight: 700;
-      /* two lines, always: the size follows the width of the column (cqw) so that
-         "The notebook" and "that does less." fit it exactly */
       font-size: clamp(2rem, 14.6cqw, 5.6rem);
       white-space: nowrap;
       line-height: 1.02;
       letter-spacing: -0.045em;
-      /* headlines: 2% tighter */
       margin: 0 0 24px;
       text-wrap-style: balance;
     }
@@ -274,13 +264,11 @@
       margin: 18px 0 0;
     }
 
-    /* links that are not live yet: dimmed, with a "coming soon" tooltip on hover, focus or tap */
     .soon {
       position: relative;
       cursor: not-allowed;
     }
 
-    /* dimmed by colour, not opacity: opacity would fade the tooltip too */
     .soon:not(.btn) {
       color: var(--muted);
     }
@@ -320,7 +308,6 @@
       opacity: 1;
     }
 
-    /* the nav link sits at the right edge: keep its tooltip on screen */
     nav.links .soon::after {
       bottom: auto;
       top: calc(100% + 8px);
@@ -339,28 +326,18 @@
       }
     }
 
-    /* the "device": a screenshot in a thin e-ink frame */
     figure.screen {
       margin: 0;
     }
 
-    /*
-      Risograph shadows. Two spot-colour inks are printed behind the object, a little off-register
-      and overprinting (multiply) like real riso layers: a flat yellow, and orange halftone dots.
-      A grain mask makes the ink break up the way riso ink does on paper.
-    */
     :root {
       --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 -3.3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
     }
 
-    /* No isolation or z-index here: the shadow layers (z-index -1) then sit behind the element's
-       own background, in the page's stacking context, and blend with the page like ink on paper. */
     .riso {
       position: relative;
     }
 
-    /* The screenshot frames are the exception, on purpose: isolating them makes the ink print
-       onto the frame's own white padding too, which tints it yellow like an overprint. */
     .frame.riso {
       isolation: isolate;
     }
@@ -433,6 +410,20 @@
       text-wrap-style: balance;
     }
 
+    h3.sub {
+      font-weight: 700;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin: 80px 0 24px;
+      max-width: 24ch;
+      text-wrap-style: balance;
+    }
+
+    h3.sub em {
+      font-style: italic;
+    }
+
     h2 em {
       font-style: italic;
     }
@@ -444,16 +435,21 @@
       font-size: 1.1rem;
     }
 
-    /* philosophy */
-    .manifesto {
+    .minifesto {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 56px;
     }
 
-    .manifesto p {
+    .minifesto p {
       margin: 0 0 1.1em;
       max-width: 46ch;
+    }
+
+    .strike {
+      text-decoration: line-through;
+      text-decoration-thickness: 0.25em;
+      text-decoration-color: var(--orange);
     }
 
     .big {
@@ -465,7 +461,7 @@
 
     .nots {
       list-style: none;
-      margin: 32px 0 0;
+      margin: 0;
       padding: 0;
       display: grid;
       gap: 0;
@@ -491,7 +487,6 @@
       text-align: right;
     }
 
-    /* how it works */
     .steps {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -499,7 +494,6 @@
       align-items: start;
     }
 
-    /* the number sits to the left of the title and the text */
     .step {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -522,7 +516,7 @@
     }
 
     .step .num {
-      grid-row: 1 / span 2; /* beside both the title and the text */
+      grid-row: 1 / span 2;
       display: flex;
       width: 38px;
       height: 38px;
@@ -532,7 +526,6 @@
       font-weight: 700;
       align-items: center;
       justify-content: center;
-      /* a smaller riso shadow than the screenshots get */
       --riso-x1: 4px;
       --riso-y1: 5px;
       --riso-x2: 8px;
@@ -556,6 +549,7 @@
     }
 
     /* gestures */
+
     table.gestures {
       width: 100%;
       border-collapse: collapse;
@@ -582,10 +576,17 @@
       width: 42%;
     }
 
+    .gestures td p {
+      margin: 0;
+    }
+
+    .gestures td p+p {
+      margin-top: 1em;
+    }
+
     .dot {
       display: inline-block;
       border-radius: 50%;
-      /* centered on the x-height; the markup has no spaces around the dots, the margins are the gap */
       vertical-align: middle;
       margin: 0 0.5em;
     }
@@ -602,34 +603,9 @@
       background: var(--yellow);
     }
 
-    .koan-band {
-      background: var(--orange);
-      color: #fff;
-      border-top: 2px solid var(--rule);
-      padding: 96px 0;
-      text-align: center;
-    }
-
-    .koan-band blockquote {
-      margin: 0 auto;
-      max-width: 22ch;
-      font-style: italic;
-      font-weight: 300;
-      font-size: clamp(2.2rem, 6vw, 4.2rem);
-      line-height: 1.12;
-      letter-spacing: -0.015em;
-    }
-
-    .koan-band p {
-      margin: 28px auto 0;
-      max-width: 46ch;
-      font-size: 1.1rem;
-    }
-
-    /* details */
     .facts {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 40px;
     }
 
@@ -709,7 +685,7 @@
         margin: 0 auto;
       }
 
-      .manifesto,
+      .minifesto,
       .steps,
       .facts {
         grid-template-columns: 1fr;
@@ -764,9 +740,8 @@
     <header class="top">
       <a class="brand" href="#top" id="top"><img src="assets/icon.svg" alt="" width="40" height="40">undia</a>
       <nav class="links" aria-label="Primary">
-        <a href="#philosophy">Philosophy</a>
-        <a href="#how">How it works</a>
-        <a class="hide-s" href="#using">Using it</a>
+        <a href="#minifesto">minifesto</a>
+        <a href="#how">how it works</a>
         <span class="soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">GitHub</span>
       </nav>
     </header>
@@ -775,45 +750,65 @@
       <div class="hero">
         <div class="hero-text">
           <h1>The notebook<br>that does <mark>less</mark>.</h1>
-          <p class="lede">One page per day. One pen. What you draw stays there: no eraser, no undo, no regrets.</p>
+          <p class="lede">
+            undia is a half notebook, half philosophy experiment:
+            one pen, one page, and one day to fill it. At midnight,
+            yesterday becomes read-only and you get a fresh blank page.
+          </p>
           <div class="cta">
-            <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">Get it on Google Play</span>
+            <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">
+              Get it on Google Play
+            </span>
             <a class="btn ghost" href="#how">How it works</a>
           </div>
-          <p class="fine">Made on a <a href="https://www.boox.com/">Boox</a> e-ink tablet. Works on any Android tablet (8 or newer): a stylus is best, and without one a finger draws.</p>
+          <p class="fine">
+            I made it for my <a href="https://www.boox.com/">Boox</a> e-ink tablet, but it seems
+            to run reasonably well on any Android 8+ device.
+          </p>
+          <p class="fine">
+            Works great with a stylus, but your fingers are fine too.
+          </p>
         </div>
         <figure class="screen">
           <div class="frame riso"><img src="screenshots/today.png" width="1072" height="1448"
               alt="Today's page in undia, covered in handwritten notes, sketches and yellow highlighter marks"></div>
-          <figcaption>Today. Notes, a doodle, a highlighter, all permanent.</figcaption>
+          <figcaption>A random Tuesday in undia’s HQ.</figcaption>
         </figure>
       </div>
     </main>
   </div>
 
-  <section id="philosophy">
+  <section id="minifesto">
     <div class="wrap">
-      <p class="label">Philosophy</p>
-      <h2>One day, one page, one pen.</h2>
-      <div class="manifesto">
+      <p class="label">minifesto</p>
+      <h2>
+        <span class="strike">less is more.</span><br>
+        more is <mark>boring.</mark>
+      </h2>
+      <div class="minifesto">
         <div>
-          <p class="big">Most notebooks give you everything: infinite pages, layers, undo, a hundred brushes. That makes
-            it easy to start and hard to <mark>commit.</mark></p>
-          <ul class="nots">
-            <li><strong>No eraser</strong><span>a page only grows</span></li>
-            <li><strong>No undo</strong><span>a mark is a decision</span></li>
-            <li><strong>No settings</strong><span>a 0.2&nbsp;mm pen, always</span></li>
-            <li><strong>No new page</strong><span>tomorrow brings one</span></li>
-          </ul>
+          <p class="big">undia is a happy idea I had while thinking about constraints in software design.</p>
+          <p>
+            Most notebooks give you <em>everything:</em> infinite pages, layers, undo, a hundred brushes…
+            I wanted something as close to a scratch paper as possible.
+          </p>
+          <p>
+            So undia gives you one blank page a day and one writing tool: the digital equivalent of a Uni PIN
+            Fine Line 0.2 (best pen ever for note taking, in my humble opinion).
+          </p>
+          <p>
+            The rest is an exercise in restraint: everything the app lacks is the result
+            of me spending <em>a lot</em> of time thinking about how to reduce features,
+            visuals, or interactions.
+          </p>
         </div>
         <div>
-          <p>undia takes the other road. Each day gets exactly one page, and it opens blank. You can add to it all day,
-            but you can never take anything back.</p>
-          <p>That small constraint changes how you write. You stop polishing and start noticing. A crossed-out thought
-            stays crossed out, next to the one that replaced it. A bad doodle is still part of the day.</p>
-          <p>At midnight the page closes and a clean one begins. Yesterday is still there to read, but it’s finished.
-            <em>Today’s page is the only one you can write on.</em>
-          </p>
+          <ul class="nots">
+            <li><strong>No undo</strong><span>because time only flows forward</span></li>
+            <li><strong>No eraser</strong><span>because all things leave some trace</span></li>
+            <li><strong>No settings</strong><span>because life’s too short</span></li>
+            <li><strong>No socials</strong><span>because inside › outside</span></li>
+          </ul>
         </div>
       </div>
     </div>
@@ -822,30 +817,36 @@
   <section id="how">
     <div class="wrap">
       <p class="label">How it works</p>
-      <h2>Four rules, <em>no manual</em>.</h2>
+      <h2>Four ideas:</h2>
       <div class="steps">
         <div class="step">
           <span class="num riso">1</span>
           <h3>One page per day</h3>
-          <p>It opens on a blank page with a fixed pen. Today’s page is the only one you can write on.</p>
+          <p>
+            undia opens (fast!) on today’s page, ready to write (or draw, or make silly sketches).
+          </p>
         </div>
         <div class="step">
           <span class="num riso">2</span>
           <h3>Renews at midnight</h3>
-          <p>When the date changes, a new blank page starts. If you’re looking at the day that just ended, undia moves
-            you to the new one.</p>
+          <p>
+            At 00:00, undia automatically saves your page and gives you a new blank one.
+          </p>
         </div>
         <div class="step">
           <span class="num riso">3</span>
           <h3>The past is read-only</h3>
-          <p>Go back to any earlier day and read it. You can scribble on it, but that ink is gray and dotted: it fades
-            in six seconds and is never saved.</p>
+          <p>
+            <em>Of course</em> you can revisit the past. You can even copy it, save it as a PDF,
+            or share it. But you
+            can’t change it.
+          </p>
         </div>
         <div class="step">
           <span class="num riso">4</span>
           <h3>Empty days give you a koan</h3>
-          <p>Nothing drawn that day? You get a short koan instead of a blank page, and the same day always shows the
-            same one.</p>
+          <p>Skipped a day? No problem! You get a <span class="strike">very bad joke</span> short koan to meditate
+            about.</p>
         </div>
       </div>
 
@@ -854,7 +855,7 @@
           <div class="frame riso"><img src="screenshots/menu.png" width="1072" height="1448" loading="lazy"
               alt="The menu over a page: a calendar of the month, then copy to clipboard, save as PDF, share and about">
           </div>
-          <figcaption>Hold a finger down for the menu: a calendar, and ways to get a page out.</figcaption>
+          <figcaption>Tap and hold a finger for the menu.</figcaption>
         </figure>
         <figure class="screen">
           <div class="frame riso"><img src="screenshots/past.png" width="1072" height="1448" loading="lazy"
@@ -863,20 +864,8 @@
           <figcaption>A past day with nothing on it. Date at the top, koan in the middle.</figcaption>
         </figure>
       </div>
-    </div>
-  </section>
 
-  <div class="koan-band">
-    <div class="wrap">
-      <blockquote>What is the sound of a pen hovering?</blockquote>
-      <p>One of the koans undia shows on days you left empty.</p>
-    </div>
-  </div>
-
-  <section id="using">
-    <div class="wrap">
-      <p class="label">Using it</p>
-      <h2>The pen draws. <em>Fingers do everything else.</em></h2>
+      <h3 class="sub">The pen draws. <em>Fingers do everything else.</em></h3>
       <table class="gestures">
         <thead>
           <tr>
@@ -891,17 +880,30 @@
           </tr>
           <tr>
             <th scope="row">Tap with one finger</th>
-            <td>Switch between pen and highlighter. The mark at the top right shows which is on: a small<span
-                class="dot pen" role="img" aria-label="black dot"></span>for the pen, a larger<span class="dot hl"
-                role="img" aria-label="yellow circle"></span>for the highlighter.</td>
+            <td>
+              <p>Switch between pen and highlighter.</p>
+              <p>
+                The mark at the top right shows which is on: a small<span class="dot pen" role="img"
+                  aria-label="black dot"></span>for the pen, a larger<span class="dot hl" role="img"
+                  aria-label="yellow circle"></span>for the highlighter.
+              </p>
+
+              <p>
+                The highlighter is a <mark>4&nbsp;mm yellow stroke</mark> (light gray on e-ink)
+                that keeps your ink readable underneath. It switches back to the pen by itself
+                0.8 seconds after a stroke, because why would you have to remember to switch back,
+                in the year 2026 of our Lord?
+              </p>
+            </td>
           </tr>
           <tr>
             <th scope="row">Swipe left or right</th>
-            <td>Next or previous day, never past today.</td>
+            <td>Next or previous day. You can’t go past today (both literally and figuratively).</td>
           </tr>
           <tr>
             <th scope="row">Double-tap</th>
-            <td>Back to today.</td>
+            <td>Back to today. Very useful when you’ve spent the last 45 minutes reading <em>very</em> bad koans from
+              the past year.</td>
           </tr>
           <tr>
             <th scope="row">Hold a finger down</th>
@@ -909,32 +911,48 @@
           </tr>
         </tbody>
       </table>
-      <p style="margin-top:32px;max-width:56ch">The highlighter is a <mark>4&nbsp;mm yellow stroke</mark> that keeps
-        your ink readable underneath. It switches back to the pen by itself 0.8&nbsp;s after a stroke, so you can
-        highlight several things in a row. On the black-and-white panel it shows as light gray.</p>
     </div>
   </section>
 
   <section id="details">
     <div class="wrap">
       <p class="label">Under the hood</p>
-      <h2>Plain files, <em>sized for the real panel</em>.</h2>
+      <h2>Boring on purpose: <em>plain files, zero lock-in</em>.</h2>
       <div class="facts">
         <div>
           <h3>Plain text, open format</h3>
-          <p>One SVG file per day, named <code>yyyy-MM-dd.svg</code>. They open in any browser or vector editor.</p>
+          <p>One SVG file per day, named <code>yyyy-MM-dd.svg</code>. Open them in any browser or vector editor. They’re
+            your notes, not mine.</p>
         </div>
         <div>
           <h3>Easy to share</h3>
-          <p>Copy a page as a PNG, save it as a vector PDF to Downloads, or share it with Android's native share sheet.
-          </p>
-        </div>
-        <div>
-          <h3>True to size</h3>
-          <p>The pen is 0.2&nbsp;mm and the highlighter 4&nbsp;mm on any panel, from the pixel density the device
-            reports.</p>
+          <p>Copy a page as a PNG, save it as a vector PDF, or share it with Android’s share sheet (LocalSend works
+            great).</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section id="making">
+    <div class="wrap">
+      <p class="label">How it was made</p>
+      <h2>Half me, <em>half robot</em>.</h2>
+      <p style="max-width:56ch">
+        I’ve been making software for a long time. But I have zero experience with
+        Android app development, and learning Kotlin felt <span class="strike">insane</span>
+        a bit overkill for this small project.
+      </p>
+      <p style="max-width:56ch">
+        So I paired with a large language model (LLM) to write the code for me.
+      </p>
+      <p style="max-width:56ch">
+        I do what I do best: think about the user experience, the design, and the idiotic jokes you’ve read on this
+        page. The LLM does what it does best: write code.
+      </p>
+      <p style="max-width:56ch">
+        I tweaked lots of little things, and tested all of it on my own Boox tablet,
+        manually, like an animal. So, any bugs you find are probably my fault 😅.
+      </p>
     </div>
   </section>
 
@@ -944,18 +962,20 @@
           alt="undia icon: a white numeral one on an orange square" width="96" height="96"></span>
       <h2>Start with <em>today</em>.</h2>
       <div class="cta">
-        <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">Get it on Google Play</span>
-        <span class="btn ghost soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">View the source</span>
+        <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">
+          Get it on Google Play
+        </span>
+        <span class="btn ghost soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">
+          View the source
+        </span>
       </div>
-      <p class="fine">Coming to Google Play. If you would rather not use it, every release will also be published on
-        GitHub as a signed APK: download it in your tablet's browser, open it, and tap Install. The first time,
-        Android may ask you to allow installs from the browser.</p>
+      <p class="fine">Coming soon to Google Play. Source code and APKs will be available on GitHub.</p>
     </div>
   </section>
 
   <div class="wrap">
     <footer>
-      <span>undia, by <a href="https://github.com/bomberstudios">Ale Muñoz</a></span>
+      <span>Made with love by <a href="https://github.com/bomberstudios">Ale Muñoz</a></span>
       <span>Set in <a href="https://www.fontshare.com/fonts/zodiak">Zodiak</a>.</span>
     </footer>
   </div>
