@@ -99,35 +99,8 @@ class MainActivity : Activity() {
         }
 
         // The menu changes height when the calendar changes month: keep it centered
-        menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            // On a short screen (a tablet held sideways) the menu would be taller than the screen. It is
-            // given its full natural height, then shrunk around its center until it fits.
-            content.measure(
-                View.MeasureSpec.makeMeasureSpec(menuWidth(), View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-            )
-            val natural = content.measuredHeight
-            val lp = menu.layoutParams
-            if (natural > 0 && lp.height != natural) {
-                lp.height = natural
-                menu.layoutParams = lp
-                menu.post { menu.requestLayout() } // a request made during layout is not always honored
-            }
-            val fit = (canvas.height * 0.9f / natural.coerceAtLeast(1)).coerceAtMost(1f)
-            // A 1 px line scaled to 0.8 would not be drawn at all: make them thick enough to survive it
-            for (r in rules) {
-                val base = (1 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-                val thick = Math.ceil((base / fit).toDouble()).toInt()
-                if (r.layoutParams.height != thick) {
-                    r.layoutParams.height = thick
-                    r.requestLayout()
-                }
-            }
-            menu.scaleX = fit
-            menu.scaleY = fit
-            menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f) - menu.left
-            menu.translationY = ((canvas.height - menu.height) / 2f).coerceAtLeast(0f) - menu.top
-        }
+        menuContent = content
+        menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> fitMenu() }
 
         // Full-screen scrim: tapping anywhere outside the menu closes it
         menuLayer = FrameLayout(this).apply {
@@ -273,6 +246,44 @@ class MainActivity : Activity() {
         }.also { parent.addView(it, LinearLayout.LayoutParams(-1, -2)) }
     }
 
+    private lateinit var menuContent: LinearLayout
+
+    /**
+     * Sizes and centers the menu. Also called when it opens: the number of rows changes with the day
+     * ("Back to today" only shows on a past one), and a layout pass alone would not notice.
+     */
+    private fun fitMenu() {
+        // On a short screen (a tablet held sideways) the menu would be taller than the screen. It is
+        // given its full natural height, then shrunk around its center until it fits.
+        menuContent.measure(
+            View.MeasureSpec.makeMeasureSpec(menuWidth(), View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val natural = menuContent.measuredHeight
+        val lp = menu.layoutParams
+        if (natural > 0 && lp.height != natural) {
+            lp.height = natural
+            menu.layoutParams = lp
+            menu.post { menu.requestLayout() } // a request made during layout is not always honored
+        }
+        val fit = (canvas.height * 0.9f / natural.coerceAtLeast(1)).coerceAtMost(1f)
+        // A 1 px line scaled to 0.8 would not be drawn at all: make them thick enough to survive it
+        for (r in rules) {
+            val base = (1 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+            val thick = Math.ceil((base / fit).toDouble()).toInt()
+            if (r.layoutParams.height != thick) {
+                r.layoutParams.height = thick
+                r.requestLayout()
+            }
+        }
+        menu.scaleX = fit
+        menu.scaleY = fit
+        // Not clamped to zero: a menu taller than the screen is centered by its middle, and the scale
+        // above (around that middle) is what brings its edges back inside
+        menu.translationX = (canvas.width - menu.width) / 2f - menu.left
+        menu.translationY = (canvas.height - menu.height) / 2f - menu.top
+    }
+
     private fun showMenu() {
         // The SDK would keep drawing under the menu, so the pen is off while it is open
         canvas.pauseInput()
@@ -281,6 +292,7 @@ class MainActivity : Activity() {
         backToToday.visibility = if (canvas.day == today) View.GONE else View.VISIBLE
 
         menuLayer.visibility = View.VISIBLE
+        fitMenu()
         // menuLayer has no size yet on first show (it was GONE), so use the canvas size
         val w = canvas.width
         val h = canvas.height
