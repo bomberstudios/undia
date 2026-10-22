@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfDocument
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
@@ -48,6 +49,12 @@ object Exporter {
     /** Saves to Downloads; returns the file name. */
     fun saveAsPdf(context: Context, page: UndiaView.PageSnapshot): String {
         val name = "undia-${timestamp()}.pdf"
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // No MediaStore.Downloads before Android 10: the app's own folder, readable from file managers
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: error("No storage")
+            File(dir, name).outputStream().use { writePdf(page, it) }
+            return name
+        }
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, "application/pdf")

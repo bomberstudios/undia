@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.bomberstudios.undia"
-        minSdk 29
+        minSdk 26
         targetSdk 34
         // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')

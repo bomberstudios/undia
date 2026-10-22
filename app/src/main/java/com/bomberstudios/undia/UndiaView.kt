@@ -44,7 +44,14 @@ import com.onyx.android.sdk.pen.style.StrokeStyle
  * One page per day: today's page can be drawn on and never erased; past days are read-only,
  * and a past day with no drawing shows a koan.
  */
+/** Boox devices report ONYX as their maker. Anything else has no e-ink panel and no Onyx pen hardware. */
+private fun isEinkDevice() = Build.MANUFACTURER.equals("onyx", ignoreCase = true) ||
+    Build.BRAND.equals("onyx", ignoreCase = true) || Build.MODEL.contains("boox", ignoreCase = true)
+
 class UndiaView(context: Context) : SurfaceView(context) {
+    /** False on an ordinary Android tablet: the pen SDK is not used there, and the app handles input itself. */
+    private val eink = isEinkDevice()
+
     private companion object {
         const val PEN_WIDTH_MM = 0.2f
         const val HIGHLIGHT_WIDTH_MM = 4f
@@ -325,6 +332,115 @@ class UndiaView(context: Context) : SurfaceView(context) {
         lastTapAt = 0L
     }
 
+    // ---- Ordinary Android tablets (no e-ink panel, no Onyx pen SDK) ----------------------------------
+    // The stylus draws, straight into the page bitmap. Fingers make the gestures, as on a Boox. A tablet
+    // without a stylus: until one is seen, a finger drags ink too, and a drag that turns out to be a
+    // page-turning swipe is taken back.
+    private var stylusSeen = false
+    private var gen: ArrayList<Float>? = null // the stroke being drawn, x and y alternating
+    private var genHighlight = false
+    private var genX = 0f
+    private var genY = 0f
+    private var fingerInk = false // a finger stroke has started to show
+    private var fingerStartX = 0f
+    private var fingerStartY = 0f
+
+    private fun genPaint() = if (!editable) tempPaint else if (genHighlight) highlightPaint else paint
+
+    /** Draws a segment of the live stroke; returns the area it touched. */
+    private fun genSegment(x0: Float, y0: Float, x1: Float, y1: Float): Rect {
+        val pad = (if (genHighlight) highlightWidthPx else penWidthPx) + 2f
+        synchronized(this) { bitmapCanvas?.drawLine(x0, y0, x1, y1, genPaint()) }
+        return Rect(
+            (minOf(x0, x1) - pad).toInt(), (minOf(y0, y1) - pad).toInt(),
+            (maxOf(x0, x1) + pad).toInt() + 1, (maxOf(y0, y1) + pad).toInt() + 1
+        )
+    }
+
+    private fun genBegin(x: Float, y: Float, highlight: Boolean, showDot: Boolean) {
+        if (loading) return
+        genHighlight = highlight && editable
+        gen = arrayListOf(x, y)
+        genX = x
+        genY = y
+        if (showDot) blit(genSegment(x, y, x + 0.01f, y))
+    }
+
+    /** Adds the points of a move event (including the ones batched since the last), drawing as it goes. */
+    private fun genMove(e: MotionEvent) {
+        val g = gen ?: return
+        val area = Rect()
+        fun add(x: Float, y: Float) {
+            if (Math.hypot((x - genX).toDouble(), (y - genY).toDouble()) < 0.5) return
+            area.union(genSegment(genX, genY, x, y))
+            g.add(x)
+            g.add(y)
+            genX = x
+            genY = y
+        }
+        for (h in 0 until e.historySize) add(e.getHistoricalX(h), e.getHistoricalY(h))
+        add(e.x, e.y)
+        if (!area.isEmpty) {
+            area.intersect(0, 0, width, height)
+            blit(area)
+        }
+    }
+
+    private fun genEnd() {
+        val g = gen ?: return
+        gen = null
+        fingerInk = false
+        notePen()
+        commitStroke(g.toFloatArray(), genHighlight, drawn = true)
+    }
+
+    /** Throws the stroke away, and the ink it already put on the page. */
+    private fun genDiscard() {
+        if (gen == null) return
+        gen = null
+        fingerInk = false
+        synchronized(this) { redrawAll() }
+        blit()
+    }
+
+    /** Stylus events on an ordinary tablet; true when the event was one. */
+    private fun stylusDraws(e: MotionEvent): Boolean {
+        val tool = e.getToolType(0)
+        if (tool != MotionEvent.TOOL_TYPE_STYLUS && tool != MotionEvent.TOOL_TYPE_ERASER) return false
+        stylusSeen = true
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                if (fingerInk) genDiscard() // a finger stroke was under way: the pen takes over
+                val button = e.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY != 0
+                genBegin(e.x, e.y, highlighting || button, showDot = true)
+            }
+            MotionEvent.ACTION_MOVE -> genMove(e)
+            MotionEvent.ACTION_UP -> { genMove(e); genEnd() }
+            MotionEvent.ACTION_CANCEL -> genDiscard()
+        }
+        return true
+    }
+
+    /** Finger ink while no stylus has been seen: starts once the finger has really moved. */
+    private fun fingerDraws(e: MotionEvent) {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                fingerStartX = e.x
+                fingerStartY = e.y
+                genBegin(e.x, e.y, highlighting, showDot = false)
+            }
+            MotionEvent.ACTION_MOVE -> if (e.pointerCount == 1 && gen != null) {
+                if (!fingerInk && Math.hypot((e.x - fingerStartX).toDouble(), (e.y - fingerStartY).toDouble()) > 2 * slop) {
+                    fingerInk = true
+                    genX = fingerStartX
+                    genY = fingerStartY
+                }
+                if (fingerInk) genMove(e)
+            }
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> genDiscard()
+        }
+    }
+
     /** A finger held still on the canvas; arguments are the view coordinates. */
     var onLongPress: ((x: Float, y: Float) -> Unit)? = null
     private var pressX = 0f
@@ -335,9 +451,13 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // Only fingers make gestures. With the pen's side button held, a touch can be reported as an
         // eraser or with button bits set rather than as a plain stylus, so test for "not a finger".
         val penButtons = MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_STYLUS_SECONDARY
-        if (e.getToolType(0) != MotionEvent.TOOL_TYPE_FINGER || e.buttonState and penButtons != 0) {
+        val tool = e.getToolType(0)
+        // Some devices (and adb) report a finger as an unknown tool
+        val fingerLike = tool == MotionEvent.TOOL_TYPE_FINGER || tool == MotionEvent.TOOL_TYPE_UNKNOWN
+        if (!fingerLike || e.buttonState and penButtons != 0) {
             notePen()
             cancelGestures()
+            if (!eink && stylusDraws(e)) return true
             return super.onTouchEvent(e)
         }
         // Palm rejection: a hand resting on the screen to write is not a gesture. Ignore touches
@@ -351,6 +471,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
             cancelGestures()
             return true
         }
+        if (!eink && !stylusSeen) fingerDraws(e)
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 if (BuildConfig.DEBUG) {
@@ -376,10 +497,16 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 // One finger, mostly sideways, far and quick enough: turn the page
                 if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < SWIPE_MAX_MS &&
                     Math.abs(dx) > width * SWIPE_MIN_FRACTION && Math.abs(dx) > 2 * Math.abs(dy)
-                ) swipeDay(if (dx < 0) 1 else -1)
-                else if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < TAP_MAX_SINGLE_MS &&
-                    Math.hypot(dx.toDouble(), dy.toDouble()) <= slop
-                ) tap(e)
+                ) {
+                    genDiscard() // a swipe is not a drawing
+                    swipeDay(if (dx < 0) 1 else -1)
+                } else {
+                    if (fingerInk) genMove(e)
+                    if (fingerInk) genEnd() else gen = null
+                    if (tapArmed && tapFingers == 1 && e.eventTime - e.downTime < TAP_MAX_SINGLE_MS &&
+                        Math.hypot(dx.toDouble(), dy.toDouble()) <= slop
+                    ) tap(e)
+                }
             }
             MotionEvent.ACTION_CANCEL -> main.removeCallbacks(longPressRunnable)
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -443,9 +570,9 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private fun applyStroke() {
         val marker = highlighting && editable
         touchHelper
-            .setStrokeStyle(if (marker) StrokeStyle.MARKER else StrokeStyle.PENCIL)
-            .setStrokeWidth(if (marker) highlightWidthPx else penWidthPx)
-            .setStrokeColor(if (!editable) TEMP_COLOR else if (marker) HIGHLIGHT_COLOR else Color.BLACK)
+            ?.setStrokeStyle(if (marker) StrokeStyle.MARKER else StrokeStyle.PENCIL)
+            ?.setStrokeWidth(if (marker) highlightWidthPx else penWidthPx)
+            ?.setStrokeColor(if (!editable) TEMP_COLOR else if (marker) HIGHLIGHT_COLOR else Color.BLACK)
     }
 
     /**
@@ -616,17 +743,21 @@ class UndiaView(context: Context) : SurfaceView(context) {
     private fun commitStroke(list: TouchPointList?, highlight: Boolean) {
         val pts = list?.points ?: return
         if (pts.isEmpty() || loading) return
-        val xy = FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y }
+        commitStroke(FloatArray(pts.size * 2) { if (it % 2 == 0) pts[it / 2].x else pts[it / 2].y }, highlight)
+    }
+
+    /** [drawn]: the stroke is already in the page bitmap (it was drawn live), so it is not drawn again. */
+    private fun commitStroke(xy: FloatArray, highlight: Boolean, drawn: Boolean = false) {
         val temporary = !editable
         val stroke = Stroke(highlight && !temporary, xy)
         synchronized(this) {
             if (temporary) {
                 tempStrokes.add(stroke)
-                bitmapCanvas?.let { renderTemp(it, stroke) }
+                if (!drawn) bitmapCanvas?.let { renderTemp(it, stroke) }
             } else {
                 strokes.add(stroke)
                 dirty = true
-                bitmapCanvas?.let { render(it, stroke) }
+                if (!drawn) bitmapCanvas?.let { render(it, stroke) }
             }
         }
         // No blit here: the surface is updated later, by queueSmooth, once the pen has been idle.
@@ -647,7 +778,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
         }
     }
 
-    private val touchHelper: TouchHelper = TouchHelper.create(this, callback)
+    private val touchHelper: TouchHelper? = if (eink) TouchHelper.create(this, callback) else null
 
     init {
         TapLog.init(context)
@@ -731,6 +862,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
      * restarts the wait, and any pen activity (a new stroke, or just hovering) pushes it back.
      */
     private fun queueSmooth(area: Rect, afterInk: Boolean) {
+        if (!eink) { // an ordinary screen has no smoothing step: just show the page as it is
+            blit(area)
+            return
+        }
         val grown = Rect(area).apply { inset(-MERGE_MARGIN_PX, -MERGE_MARGIN_PX) }
         synchronized(pendingAreas) {
             val merged = Rect(area)
@@ -788,14 +923,15 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 EpdController.handwritingRepaint(this, area)
             }
             EpdController.clearTransientUpdate(true)
-            touchHelper.isRawDrawingRenderEnabled = false
-            touchHelper.isRawDrawingRenderEnabled = true
+            touchHelper?.isRawDrawingRenderEnabled = false
+            touchHelper?.isRawDrawingRenderEnabled = true
         } catch (t: Throwable) {
             // Not an e-ink device: the surface already holds the smooth strokes
         }
     }
 
     private fun openRaw(w: Int, h: Int) {
+        val touchHelper = touchHelper ?: return // not an e-ink device
         closeRaw()
         touchHelper
             .setLimitRect(mutableListOf(Rect(0, 0, w, h)))
@@ -816,8 +952,8 @@ class UndiaView(context: Context) : SurfaceView(context) {
         main.removeCallbacks(smoothRunnable)
         synchronized(pendingAreas) { pendingAreas.clear() }
         if (!rawOpen) return
-        touchHelper.setRawDrawingEnabled(false)
-        touchHelper.closeRawDrawing()
+        touchHelper?.setRawDrawingEnabled(false)
+        touchHelper?.closeRawDrawing()
         rawOpen = false
     }
 
@@ -924,10 +1060,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
             loading = true
             id = ++loadId
         }
-        if (rawOpen) {
-            if (!editable) highlighting = false // the highlighter is for today's page only
+        if (!editable) highlighting = false // the highlighter is for today's page only
+        if (rawOpen || !eink) {
             applyStroke()
-            touchHelper.setRawDrawingEnabled(true)
+            touchHelper?.setRawDrawingEnabled(true)
         }
         val file = pageFile(newDay)
         loadExecutor.execute {
@@ -1055,13 +1191,13 @@ class UndiaView(context: Context) : SurfaceView(context) {
     }
 
     fun pauseInput() {
-        if (rawOpen) touchHelper.setRawDrawingEnabled(false)
+        if (rawOpen) touchHelper?.setRawDrawingEnabled(false)
     }
 
     fun resumeInput() {
-        if (rawOpen) {
+        if (rawOpen || !eink) {
             blit()
-            touchHelper.setRawDrawingEnabled(true)
+            touchHelper?.setRawDrawingEnabled(true)
             main.post { fadeStep() } // catch up on any fading missed while paused
         }
     }
