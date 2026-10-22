@@ -34,6 +34,8 @@ class MainActivity : Activity() {
     private lateinit var menu: ScrollView
     private lateinit var calendar: CalendarGrid
     private lateinit var backToToday: View
+    // The lines between the menu rows: one pixel thick, so they need help when the menu is scaled down
+    private val rules = ArrayList<View>()
     private lateinit var aboutLayer: FrameLayout
     private lateinit var aboutCard: ScrollView
     // Shows the current tool. It is not a button: a one-finger tap anywhere switches pen/highlighter.
@@ -112,6 +114,15 @@ class MainActivity : Activity() {
                 menu.post { menu.requestLayout() } // a request made during layout is not always honored
             }
             val fit = (canvas.height * 0.9f / natural.coerceAtLeast(1)).coerceAtMost(1f)
+            // A 1 px line scaled to 0.8 would not be drawn at all: make them thick enough to survive it
+            for (r in rules) {
+                val base = (1 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+                val thick = Math.ceil((base / fit).toDouble()).toInt()
+                if (r.layoutParams.height != thick) {
+                    r.layoutParams.height = thick
+                    r.requestLayout()
+                }
+            }
             menu.scaleX = fit
             menu.scaleY = fit
             menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f) - menu.left
@@ -241,7 +252,9 @@ class MainActivity : Activity() {
 
     private fun addItem(parent: LinearLayout, label: String, onClick: () -> Unit): View {
         val dp = resources.displayMetrics.density
-        parent.addView(View(this).apply { setBackgroundColor(Color.BLACK) }, LinearLayout.LayoutParams(-1, (1 * dp).toInt()))
+        val rule = View(this).apply { setBackgroundColor(Color.BLACK) }
+        rules.add(rule)
+        parent.addView(rule, LinearLayout.LayoutParams(-1, (1 * dp).toInt()))
         return TextView(this).apply {
             text = label
             textSize = 18f
