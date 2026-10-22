@@ -2,6 +2,8 @@ package org.naranjanaranja.undia
 
 import android.app.Activity
 import android.graphics.Color
+import android.net.Uri
+import android.content.Intent
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.text.LineBreaker
@@ -22,6 +24,8 @@ import java.io.File
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+
+private const val PRIVACY_URL = "https://undia.naranjanaranja.org/privacy/"
 
 class MainActivity : Activity() {
     private companion object {
@@ -207,6 +211,17 @@ class MainActivity : Activity() {
                 17f, Gravity.CENTER, 10
             ))
             addView(text("Made with love by Ale Muñoz", 13f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
+            // Google Play wants the privacy policy linked from inside the app
+            addView(text("Privacy policy", 13f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)).apply {
+                paintFlags = paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
+                setOnClickListener {
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)))
+                    } catch (t: Exception) {
+                        Toast.makeText(this@MainActivity, PRIVACY_URL, Toast.LENGTH_LONG).show()
+                    }
+                }
+            })
         }
     }
 

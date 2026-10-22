@@ -46,14 +46,14 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.p12"
 
-      - name: Build signed release APK
+      - name: Build signed release APK and app bundle
         env:
           VERSION_NAME: ${{ steps.version.outputs.name }}
           STORE_FILE: ${{ runner.temp }}/release.p12
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: BUILD_DATE=$(date -u +%F) ./gradlew assembleRelease
+        run: BUILD_DATE=$(date -u +%F) ./gradlew assembleRelease bundleRelease
 
       - name: Verify signature
         run: |
@@ -67,6 +67,16 @@ jobs:
         with:
           name: undia-release-apk
           path: undia-*.apk
+          if-no-files-found: error
+
+      # The app bundle is what gets uploaded to Google Play; it is not attached to the GitHub release
+      - name: Name the app bundle
+        run: cp app/build/outputs/bundle/release/app-release.aab "undia-${{ steps.version.outputs.name }}.aab"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: undia-release-bundle
+          path: undia-*.aab
           if-no-files-found: error
 
       - name: Publish release
