@@ -1,6 +1,6 @@
 # undia
 
-A one-page-a-day notebook for Boox tablets with stylus support.
+A one-page-a-day notebook for Android tablets, at its best on e-ink tablets like Boox.
 
 You get **one page per day**. It opens on a blank page with a fixed 0.2 mm pen, and what you draw on it stays there. There is no eraser, no clear and no undo: a day's page can only be added to, never taken back.
 
@@ -53,11 +53,11 @@ Debug builds (the ones from Android Studio or `./gradlew assembleDebug`) have on
 
 Built and tested on a Boox Go 6 Gen 2 running firmware 4.2.2 (Android 13). That is the only device and firmware it has been tried on. Nothing is tied to its resolution: the pen is 0.2 mm wide and the highlighter 4 mm on any panel, because the sizes come from the real pixel density the device reports, and the layout uses dp and fractions of the screen. Other Boox tablets with a stylus, like the Go 10.3, should work, but only the Go 6 has been tried.
 
-The app takes drawing input from the stylus only (fingers are for gestures), so a device without a stylus can't draw on it.
+On a Boox the stylus draws and fingers only make gestures. On any other Android tablet (Android 8 or newer) the app does not use the Onyx pen libraries: the stylus draws, and until it sees a stylus a finger draws too, taking the stroke back if it turns out to be a page-turning swipe. That path has been tried on a Huawei tablet running Android 8.0, with a finger only.
 
 ## Installing
 
-Download the signed APK from the [latest release](https://github.com/bomberstudios/undia/releases/latest) in your Boox's own browser, open it from the downloads, and tap Install. The first time, Android may ask you to allow installs from that browser. There is no need to use `adb`.
+The plan is to publish undia on Google Play; it isn't there yet. Until then, and for anyone who prefers not to use it, every release is a signed APK: download it from the [latest release](https://github.com/bomberstudios/undia/releases/latest) in your tablet's own browser, open it from the downloads, and tap Install. The first time, Android may ask you to allow installs from that browser. There is no need to use `adb`.
 
 ## Building
 
