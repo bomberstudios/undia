@@ -1,4 +1,4 @@
-package com.bomberstudios.undia
+package org.naranjanaranja.undia
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.bomberstudios.undia'
+    namespace 'org.naranjanaranja.undia'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.bomberstudios.undia"
+        applicationId "org.naranjanaranja.undia"
         minSdk 26
         targetSdk 34
         // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)

@@ -1,4 +1,4 @@
-package com.bomberstudios.undia
+package org.naranjanaranja.undia
 
 import java.time.LocalDate
 import org.junit.Assert.assertEquals

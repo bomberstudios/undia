@@ -1,4 +1,4 @@
-package com.bomberstudios.undia
+package org.naranjanaranja.undia
 
 import android.content.Context
 import android.graphics.Canvas

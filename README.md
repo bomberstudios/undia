@@ -78,7 +78,7 @@ The Onyx pen libraries are downloaded from Onyx's Maven repository (`http://repo
 
 ## Where things are
 
-Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline per stroke) in the app's private storage, so they open in any browser or vector editor. Code is in `app/src/main/java/com/bomberstudios/undia`:
+Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline per stroke) in the app's private storage, so they open in any browser or vector editor. Code is in `app/src/main/java/org/naranjanaranja/undia`:
 
 - `UndiaView.kt`: the canvas, the Onyx pen input, the daily pages and saving
 - `MainActivity.kt`: the menu, the calendar and the midnight rollover

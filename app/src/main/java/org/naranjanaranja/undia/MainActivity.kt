@@ -1,4 +1,4 @@
-package com.bomberstudios.undia
+package org.naranjanaranja.undia
 
 import android.app.Activity
 import android.graphics.Color

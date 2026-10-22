@@ -1,4 +1,4 @@
-package com.bomberstudios.undia
+package org.naranjanaranja.undia
 
 import android.app.Application
 import android.os.Build
