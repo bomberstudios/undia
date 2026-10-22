@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'org.naranjanaranja.undia'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "org.naranjanaranja.undia"
         minSdk 26
-        targetSdk 34
+        targetSdk 36
         // CI sets these: the VERSION file plus the commit hash, and the run number (always going up)
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
         versionName System.getenv('VERSION_NAME') ?: (rootProject.file('VERSION').text.trim() + '-dev')
