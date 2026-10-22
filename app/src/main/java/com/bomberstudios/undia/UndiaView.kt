@@ -69,6 +69,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
         // After a highlight, how long before the pen comes back (resets with each new highlight)
         const val REVERT_TO_PEN_MS = 800L
         const val PEN_GUARD_MS = 800L // finger gestures are ignored this long after the pen was last near
+        // The page text has a physical size, like the pen: the same in millimetres on any screen
+        // (3.5 and 5 mm are what the first design came to on a 1072 px wide, 300 ppi Boox)
+        const val DATE_MM = 3.5f
+        const val KOAN_MM = 5f
         const val PALM_MM = 15f // a touch wider than this is a palm, not a fingertip
         const val TAP_MAX_SINGLE_MS = 250L // longest touch that still counts as a tap
         const val SWIPE_MAX_MS = 800L
@@ -1111,7 +1115,7 @@ class UndiaView(context: Context) : SurfaceView(context) {
     /** The date, centered at the top of a past page, in the same font as the koans. */
     private fun drawDate(c: Canvas, w: Int, h: Int, day: LocalDate, p: TextPaint) {
         val text = day.format(dateFormat)
-        p.textSize = w * 0.03825f * fontBoost // 15% smaller than 0.045
+        p.textSize = DATE_MM / 25.4f * ppi * fontBoost
         val tooWide = p.measureText(text) / (w * 0.92f)
         if (tooWide > 1f) p.textSize /= tooWide // always inside the page
         c.drawText(text, w / 2f, h * 0.06f + p.textSize, p)
@@ -1133,9 +1137,10 @@ class UndiaView(context: Context) : SurfaceView(context) {
                 .build()
         }
         // A big system font may not fit the page: shrink until it does, but never below the floor
-        var size = w * 0.055f * fontBoost
+        var size = KOAN_MM / 25.4f * ppi * fontBoost
+        val floor = KOAN_MM / 25.4f * ppi * 0.55f
         var layout = layoutFor(size)
-        while (layout.height > h * 0.62f && size > w * 0.03f) {
+        while (layout.height > h * 0.62f && size > floor) {
             size *= 0.94f
             layout = layoutFor(size)
         }

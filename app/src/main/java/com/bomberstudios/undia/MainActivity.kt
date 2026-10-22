@@ -98,6 +98,22 @@ class MainActivity : Activity() {
 
         // The menu changes height when the calendar changes month: keep it centered
         menu.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            // On a short screen (a tablet held sideways) the menu would be taller than the screen. It is
+            // given its full natural height, then shrunk around its center until it fits.
+            content.measure(
+                View.MeasureSpec.makeMeasureSpec(menuWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            val natural = content.measuredHeight
+            val lp = menu.layoutParams
+            if (natural > 0 && lp.height != natural) {
+                lp.height = natural
+                menu.layoutParams = lp
+                menu.post { menu.requestLayout() } // a request made during layout is not always honored
+            }
+            val fit = (canvas.height * 0.9f / natural.coerceAtLeast(1)).coerceAtMost(1f)
+            menu.scaleX = fit
+            menu.scaleY = fit
             menu.translationX = ((canvas.width - menu.width) / 2f).coerceAtLeast(0f) - menu.left
             menu.translationY = ((canvas.height - menu.height) / 2f).coerceAtLeast(0f) - menu.top
         }
