@@ -394,7 +394,6 @@ class UndiaView(context: Context) : SurfaceView(context) {
         val g = gen ?: return
         gen = null
         fingerInk = false
-        notePen()
         commitStroke(g.toFloatArray(), genHighlight, drawn = true)
     }
 
