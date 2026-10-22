@@ -47,7 +47,13 @@ A past day with nothing on it shows its date, centered at the top in the same fo
 
 ## Debug builds
 
-Debug builds (the ones from Android Studio or `./gradlew assembleDebug`) have one extra: holding the pen's side button and drawing over strokes erases them, so test pages can be cleaned up. Release builds can't erase anything.
+Debug builds (the ones from Android Studio or `./gradlew assembleDebug`) have a scratch page for testing, so that the real notes are never touched:
+
+- On today's page, swipe in the direction that normally does nothing (left) to open the test page. It is a normal page that you can draw on, and it is kept under the date 1970-01-01.
+- Three quick taps on the test page clear it.
+- Swipe right to go back to today.
+
+Release builds have none of this, and nothing in the app can erase or clear a page.
 
 ## Devices
 
