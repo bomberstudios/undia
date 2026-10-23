@@ -5,3 +5,8 @@ local.properties
 *.iml
 .kotlin/
 .vscode/
+
+# Zodiak (ITF Free Font License): downloaded by scripts/get-fonts.sh, never committed
+/fonts/
+/app/src/main/res/font/*.otf
+/docs/assets/Zodiak-*

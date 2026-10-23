@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Get the Zodiak font
+        run: scripts/get-fonts.sh
+
       # Needs the repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts: Edit, plus
       # Zone: Read and Workers Routes: Edit on naranjanaranja.org) and CLOUDFLARE_ACCOUNT_ID
       - uses: cloudflare/wrangler-action@v3

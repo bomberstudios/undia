@@ -67,6 +67,12 @@ The plan is to publish undia on Google Play; it isn't there yet. Until then, and
 
 ## Building
 
+The Zodiak font is not in the repository (its licence doesn't allow passing the files on), so download it first. The script fetches it from Fontshare and puts the files where the app and the website expect them:
+
+```bash
+scripts/get-fonts.sh
+```
+
 Open the project in Android Studio, or from the command line:
 
 ```bash
@@ -92,7 +98,7 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 - `PageFile.kt`: reading and writing the SVG pages
 - `Koans.kt`: the koans for empty days
 - `app/src/test`: unit tests for the koans and the page files (`./gradlew testDebugUnitTest`, run on every pull request)
-- `fonts/`: the Zodiak font files (copied, renamed, into `res/font/` for the app, which uses Zodiak for all text; the date and koans are in Zodiak Italic)
+- `scripts/get-fonts.sh`: downloads the Zodiak font from Fontshare into `app/src/main/res/font/` (which the app, set in Zodiak throughout, reads; the date and koans use Zodiak Italic) and `docs/assets/` (the website)
 - `design/undia.svg`: the app icon source; the Android version is `res/drawable/ic_launcher_foreground.xml` on an orange background
 
 ## Thanks
@@ -103,4 +109,4 @@ Pages are stored as one plain SVG file per day (`yyyy-MM-dd.svg`, one polyline p
 
 ## License
 
-The code is under the [MIT License](LICENSE). The Zodiak font files (`fonts/`, `app/src/main/res/font/`, `docs/assets/`) are not: they stay under the ITF Free Font License.
+The code is under the [MIT License](LICENSE). The Zodiak font is not part of it and is not in this repository: it is under the ITF Free Font License, so `scripts/get-fonts.sh` downloads it from Fontshare for each build.
