@@ -191,7 +191,7 @@ class MainActivity : Activity() {
             val pad = (54 * dp).toInt()
             setPadding(pad, pad, pad, pad) // the same on every side; wide sides keep the lines short
             addView(ImageView(context).apply {
-                setImageDrawable(getDrawable(R.mipmap.ic_launcher))
+                setImageResource(R.drawable.about_icon)
                 contentDescription = "undia icon"
             }, LinearLayout.LayoutParams((88 * dp).toInt(), (88 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL })
             addView(text("undia", 28f, Gravity.CENTER, 8, face = zodiakBold))
