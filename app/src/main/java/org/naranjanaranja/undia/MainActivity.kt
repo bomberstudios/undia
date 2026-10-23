@@ -195,22 +195,25 @@ class MainActivity : Activity() {
                 contentDescription = "undia icon"
             }, LinearLayout.LayoutParams((88 * dp).toInt(), (88 * dp).toInt()).apply { gravity = Gravity.CENTER_HORIZONTAL })
             addView(text("undia", 28f, Gravity.CENTER, 8, face = zodiakBold))
-            addView(text("The notebook that does LESS", 17f, Gravity.CENTER, 0, face = zodiakItalic))
+            addView(text("The notebook that does less", 17f, Gravity.CENTER, 0, face = zodiakItalic))
             addView(text("Version $version · built ${BuildConfig.BUILD_DATE}", 14f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)))
-            addView(text("undia is a half notebook, half philosophy manifesto:", 17f, Gravity.CENTER, 18))
             addView(text(
-                "You get one page per day. You can draw, but you can’t erase or undo. Regret is not your friend (and it’s overrated anyway).",
+                "undia is a half notebook, half philosophy experiment: one pen, one page, and one day to fill it. At midnight, yesterday becomes read-only and you get a fresh blank page.",
+                17f, Gravity.CENTER, 18
+            ))
+            addView(text(
+                "Most notebooks give you everything: infinite pages, layers, undo, a hundred brushes… I wanted something as close to scratch paper as possible. No undo, because time only flows forward. No eraser, because all things leave some trace. No settings, because life’s too short.",
                 17f, Gravity.CENTER, 10
             ))
             addView(text(
-                "You can revisit old pages, but you can’t rewrite the past (well, you can try, but it won’t work). Skipped a day? You’ll get a random koan so you can still have something to meditate about.",
+                "You can revisit the past, copy it, save it as a PDF, or share it. But you can’t change it. Skipped a day? You get a short koan to meditate about.",
                 17f, Gravity.CENTER, 10
             ))
             addView(text(
-                "undia does less by giving you one pen and one highlighter. Toggle between them using the mark at the top right (or a three finger tap). Swipe to flip pages, double tap to come back to today, and hold for a menu.",
+                "Tap with one finger to switch between pen and highlighter. Swipe to flip pages, double-tap to come back to today, and hold for the menu.",
                 17f, Gravity.CENTER, 10
             ))
-            addView(text("Made with love by Ale Muñoz", 13f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
+            addView(text("Made with love by Ale Muñoz and his robot", 13f, Gravity.CENTER, 20, Color.rgb(0x44, 0x44, 0x44)))
             // Google Play wants the privacy policy linked from inside the app
             addView(text("Privacy policy", 13f, Gravity.CENTER, 6, Color.rgb(0x44, 0x44, 0x44)).apply {
                 paintFlags = paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
