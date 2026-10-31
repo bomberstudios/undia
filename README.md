@@ -63,7 +63,7 @@ On a Boox the stylus draws and fingers only make gestures. On any other Android 
 
 ## Installing
 
-The plan is to publish undia on Google Play; it isn't there yet. Until then, and for anyone who prefers not to use it, every release is a signed APK: download it from the [latest release](https://github.com/bomberstudios/undia/releases/latest) in your tablet's own browser, open it from the downloads, and tap Install. The first time, Android may ask you to allow installs from that browser. There is no need to use `adb`.
+undia is on [Google Play](https://play.google.com/store/apps/details?id=org.naranjanaranja.undia). For anyone who prefers not to use it, every release is also a signed APK: download it from the [latest release](https://github.com/bomberstudios/undia/releases/latest) in your tablet's own browser, open it from the downloads, and tap Install. The first time, Android may ask you to allow installs from that browser. There is no need to use `adb`.
 
 The APKs here and the version on Google Play are signed with different keys (Play signs its own with a key it holds), so Android won't update one with the other. If you want to switch from one to the other, uninstall first. The pages are stored inside the app, so export what you want to keep (Save as PDF) before you do.
 

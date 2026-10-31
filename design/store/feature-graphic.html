@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>undia feature graphic</title>
+<style>
+@font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-Light.woff2") format("woff2"), url("../../docs/assets/Zodiak-Light.otf") format("opentype");
+      font-weight: 300;
+      font-style: normal;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-LightItalic.woff2") format("woff2"), url("../../docs/assets/Zodiak-LightItalic.otf") format("opentype");
+      font-weight: 300;
+      font-style: italic;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-Regular.woff2") format("woff2"), url("../../docs/assets/Zodiak-Regular.otf") format("opentype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-Italic.woff2") format("woff2"), url("../../docs/assets/Zodiak-Italic.otf") format("opentype");
+      font-weight: 400;
+      font-style: italic;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-Bold.woff2") format("woff2"), url("../../docs/assets/Zodiak-Bold.otf") format("opentype");
+      font-weight: 700;
+      font-style: normal;
+      font-display: block;
+    }
+
+    @font-face {
+      font-family: "Zodiak";
+      src: url("../../docs/assets/Zodiak-BoldItalic.woff2") format("woff2"), url("../../docs/assets/Zodiak-BoldItalic.otf") format("opentype");
+      font-weight: 700;
+      font-style: italic;
+      font-display: block;
+    }
+
+:root { --paper:#f9f8f6; --ink:#111; --rule:#5c5c5c; --orange:#ff6600; --yellow:#ffcc00;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 -3.3'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+* { box-sizing:border-box; }
+html,body { margin:0; width:1024px; height:500px; overflow:hidden; background:var(--paper); }
+body { font-family:"Zodiak",Georgia,serif; color:var(--ink); position:relative; }
+    .riso {
+      position: relative;
+    }
+
+    .frame.riso {
+      isolation: isolate;
+    }
+
+    .riso::before,
+    .riso::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      z-index: -1;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      /* overprints like riso ink */
+      -webkit-mask-image: var(--grain);
+      mask-image: var(--grain);
+      -webkit-mask-size: 240px 240px;
+      mask-size: 240px 240px;
+    }
+
+    .riso::before {
+      background: var(--yellow);
+      transform: translate(var(--riso-x1, 9px), var(--riso-y1, 10px));
+    }
+
+    .riso::after {
+      background: radial-gradient(circle at center, var(--orange) 0 38%, transparent 42%) 0 0 / 8px 8px;
+      transform: translate(var(--riso-x2, 17px), var(--riso-y2, 15px));
+    }
+
+
+.frame { border:2px solid var(--rule); border-radius:22px; padding:8px; background:#fff; }
+.frame img { display:block; width:100%; height:auto; border-radius:12px; }
+.text { position:absolute; left:64px; top:0; bottom:0; width:560px; display:flex; flex-direction:column; justify-content:center; }
+h1 { font-weight:700; font-size:76px; line-height:1.02; letter-spacing:-0.045em; margin:0 0 22px; white-space:nowrap; }
+mark { background:linear-gradient(transparent 12%,var(--yellow) 12%,var(--yellow) 92%,transparent 92%); color:#111; padding:0 .12em; margin:0 -.12em; }
+p { margin:0; font-size:28px; line-height:1.35; max-width:21em; }
+.brand { position:absolute; left:64px; top:40px; display:flex; align-items:center; gap:12px; font-weight:700; font-size:26px; letter-spacing:-.01em; }
+.brand img { width:40px; height:40px; border-radius:9px; }
+.shot { position:absolute; right:72px; top:44px; width:300px; transform:rotate(2.5deg); }
+</style></head>
+<body>
+<div class="brand"><img src="../../docs/assets/icon.svg" alt="">undia</div>
+<div class="text">
+  <h1>The notebook<br>that does <mark>less</mark>.</h1>
+  <p>One page a day. One pen. No undo.</p>
+</div>
+<div class="shot"><div class="frame riso"><img src="../../docs/screenshots/today.png" alt=""></div></div>
+</body></html>

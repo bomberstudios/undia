@@ -264,61 +264,7 @@
       margin: 18px 0 0;
     }
 
-    .soon {
-      position: relative;
-      cursor: not-allowed;
-    }
-
-    .soon:not(.btn) {
-      color: var(--muted);
-    }
-
-    .btn.soon {
-      background: #ffc59e;
-      border-color: #ffc59e;
-    }
-
-    .btn.ghost.soon {
-      background: transparent;
-      border-color: #a8a8a8;
-      color: #8a8a8a;
-    }
-
-    .soon::after {
-      content: attr(data-tip);
-      position: absolute;
-      bottom: calc(100% + 8px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--ink);
-      color: var(--paper);
-      font-size: 0.85rem;
-      font-weight: 400;
-      line-height: 1;
-      padding: 8px 12px;
-      border-radius: 6px;
-      white-space: nowrap;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity .15s ease;
-    }
-
-    .soon:hover::after,
-    .soon:focus::after {
-      opacity: 1;
-    }
-
-
-    .btn.soon:hover {
-      transform: none;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .soon::after {
-        transition: none;
-      }
-    }
-
+    /* the "device": a screenshot in a thin e-ink frame */
     figure.screen {
       margin: 0;
     }
@@ -749,9 +695,7 @@
             yesterday becomes read-only and you get a fresh blank page.
           </p>
           <div class="cta">
-            <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">
-              Get it on Google Play
-            </span>
+            <a class="btn" href="https://play.google.com/store/apps/details?id=org.naranjanaranja.undia">Get it on Google Play</a>
             <a class="btn ghost" href="#how">How it works</a>
           </div>
           <p class="fine">
@@ -955,12 +899,10 @@
           alt="undia icon: a white numeral one on an orange square" width="96" height="96"></span>
       <h2>Start with <em>today</em>.</h2>
       <div class="cta">
-        <span class="btn soon" tabindex="0" role="link" aria-disabled="true" data-tip="Coming soon">
-          Get it on Google Play
-        </span>
+        <a class="btn" href="https://play.google.com/store/apps/details?id=org.naranjanaranja.undia">Get it on Google Play</a>
         <a class="btn ghost" href="https://github.com/bomberstudios/undia">View the source</a>
       </div>
-      <p class="fine">Coming soon to Google Play. The source code and signed APKs are on GitHub.</p>
+      <p class="fine">Now on Google Play. The source code and signed APKs are on GitHub.</p>
     </div>
   </section>
 
